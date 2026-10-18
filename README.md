@@ -9,3 +9,4 @@ Fuse two absurd original creatures into one ridiculous fighter, then smash a 15-
 - Test hook `window.__test` only exists with `?debug`.
 
 Keys: Space/J tap, Up/W jump, Down/S duck, E special, R retry, Esc quit.
+Live: https://brainrot-battle-eight.vercel.app
