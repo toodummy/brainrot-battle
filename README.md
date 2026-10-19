@@ -1,12 +1,19 @@
 # Brainrot Battle
 
-Fuse two absurd original creatures into one ridiculous fighter, then smash a 15-rung ladder **to the beat**.
+Real-time 1v1 brawler starring absurd original creatures. Vanilla JS + canvas, no build step.
 
-- Drag one creature onto another (or tap two + FUSE) for a dramatic fusion reveal with a generated name, description, stats and a combined special move. ~8% chance of an **Absurd Legendary**.
-- Battles: tap on the beat (PERFECT = 2x crit), swipe up/down (or arrow keys) to dodge red telegraphs, fire SPECIAL when charged. Random chaos events every few seconds.
-- Single self-contained `index.html` (canvas + WebAudio, no external assets). Progress in localStorage.
-- Monetization stubs: `showAd(onDone)` (free fusion, reroll, x2 coins) and `purchase(sku, cb)` (Cosmic Cursed Pack). Wire to CrazyGames/Poki SDK and Stripe later.
-- Test hook `window.__test` only exists with `?debug`.
-
-Keys: Space/J tap, Up/W jump, Down/S duck, E special, R retry, Esc quit.
 Live: https://brainrot-battle-eight.vercel.app
+
+## Controls
+- Desktop: A/D or arrows move (double-tap = dash), W / Space / Up jump, J punch (3-hit string), K heavy (hold to charge, launches; in air = meteor spike), L block (tap just before a hit = parry, stuns), U special (when meter full), Esc menu.
+- Mobile: drag the left side to move (flick up = jump, double-flick = dash); PUNCH / HEAVY / BLOCK / SPECIAL buttons on the right. Multitouch.
+
+## Game
+- Best of 3, 60s rounds. Ladder of 8 opponents (difficulty ramps) ending with The Omega Brainrot.
+- Juggles, ground bounce, wall bounce, combo scaling, chip damage, projectiles that can be swatted, super-flash specials.
+- Fusion Lab (light): your fighter keeps its body and borrows another fighter's special.
+- Stubs: `showAd()` (continue / double coins) and `purchase()` (premium fighter) in game.js.
+
+## Files
+- `index.html`: UI and styles. `game.js`: the game. `assets/`: webp sprites (idle/attack/hurt) + arena, plus `sprites.json` anchors.
+- `?debug` exposes `window.__test` hooks for automated tests.
