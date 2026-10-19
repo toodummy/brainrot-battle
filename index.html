@@ -80,7 +80,9 @@ h2{margin:14px 0 6px;font-size:18px;color:#b6ff2e;text-shadow:2px 2px 0 #000}
 #bU.ready{background:radial-gradient(circle,#fff36b,#ff3df2);color:#000;animation:throb .4s infinite alternate}
 @keyframes throb{to{transform:scale(1.12) rotate(5deg)}}
 #pauseBtn{position:fixed;z-index:6;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top));font:inherit;font-size:11px;padding:4px 10px;border-radius:10px;border:2px solid #000;background:#0008;color:#fff;display:none}
-</style></head><body>
+</style><style>button,a,.scr *{touch-action:manipulation}*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}input,textarea{-webkit-user-select:text;user-select:text}</style>
+<script>(function(){var last=0;document.addEventListener('touchend',function(e){var n=Date.now();if(n-last<350&&!(e.target.closest&&e.target.closest('input,textarea'))){e.preventDefault();}last=n;},{passive:false});['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();},{passive:false});});document.addEventListener('dblclick',function(e){e.preventDefault();},{passive:false});document.addEventListener('touchmove',function(e){if(e.touches&&e.touches.length>1)e.preventDefault();},{passive:false});})();</script>
+</head><body>
 <canvas id="cv"></canvas>
 <div id="pad"><div id="stickZone"><div id="stickHint">DRAG<br>move / flick up = jump<br>double-flick = dash</div><div id="stick"><i></i></div></div>
 <button class="tb" id="bL" data-k="light">PUNCH<small>J</small></button><button class="tb" id="bK" data-k="heavy">HEAVY<small>hold</small></button><button class="tb" id="bB" data-k="block">BLOCK<small>L</small></button><button class="tb" id="bU" data-k="special">SPECIAL</button></div>
