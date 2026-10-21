@@ -115,6 +115,9 @@ const SFX={
  zap(){noise(.3,.9,2500,0,'highpass');tone('sawtooth',1400,60,.32,.28);noise(.4,.5,400,T()+.05,'lowpass')},
  choir(){const t=T();[523,659,784,1046].forEach((f,i)=>{tone('sine',f,f*1.003,1.1,.07,t+i*.04);tone('triangle',f*2,f*2,.8,.02,t+.1+i*.04)})},
  sparkle(){const t=T();[1568,2093,2637,3136,2637].forEach((f,i)=>tone('triangle',f,f,.12,.07,t+i*.05))},
+ levelup(){const t=T();[523,659,784,1047,1319].forEach((f,i)=>{tone('square',f,f,.12,.11,t+i*.06,3000);tone('triangle',f*2,f*2,.1,.05,t+i*.06)})},
+ evoCharge(){tone('sawtooth',80,900,1.7,.16,0,1800);tone('sine',120,1400,1.7,.18);noise(1.7,.35,300,0,'bandpass',4,5000);[0,.4,.8,1.1,1.35,1.55].forEach(d=>tone('triangle',880+d*600,880+d*600,.08,.08,T()+d))},
+ evoBoom(){noise(.9,1,1000,0,'lowpass',1,60);tone('sine',70,25,.9,1);setTimeout(()=>{SFX.fanfare();SFX.choir()},250)},
  womp(){const t=T();[294,277,262,233].forEach((f,i)=>tone('sawtooth',f,i==3?180:f*.97,i==3?.8:.32,.2,t+i*.34,900))},
 };
 function say(txt){if(S.muted||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.pitch=.6;u.rate=1.05;speechSynthesis.speak(u)}catch(e){}}
@@ -135,6 +138,43 @@ if(S.prem&&!S.unlocked.includes('boss'))S.unlocked.push('boss');
 S.unlocked=S.unlocked.filter(id=>FIGHTERS[id]);if(!FIGHTERS[S.pick])S.pick='shark';
 try{localStorage.setItem(SAVE_KEY,JSON.stringify(S))}catch(e){}
 function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(S))}catch(e){}}
+
+
+// ---------- LEVELS / EVOLUTION ----------
+// XP per fighter; LV1-10. LV5 = Stage 2 (EVOLVED), LV10 = Stage 3 (ASCENDED). Small stat boosts per level.
+const LV_XP=[0,100,240,420,650,930,1260,1640,2080,2580],MAXLV=10;
+const EVO_ART=new Set(['shark','cup','duck','toaster','cactus','banana','broc','boss','toilet','pigeon','frog','potato','cat','onion']);
+if(!S.xp||typeof S.xp!=='object')S.xp={};
+const xpOf=id=>S.xp[id]||0;
+const lvFromXp=x=>{let l=1;while(l<MAXLV&&x>=LV_XP[l])l++;return l};
+const lvOf=id=>lvFromXp(xpOf(id));
+const stageOfLv=l=>l>=10?3:l>=5?2:1;
+const stageOf=id=>stageOfLv(lvOf(id));
+const STAGE_NAME=['','BASE','EVOLVED','ASCENDED'],STAGE_COL=['','#fff','#2ec5ff','#ffd23d'];
+const lvMul=l=>({hp:1+.025*(l-1),pow:1+.02*(l-1)});
+const lvFrac=x=>{const l=lvFromXp(x);if(l>=MAXLV)return 1;return (x-LV_XP[l-1])/(LV_XP[l]-LV_XP[l-1])};
+const skinKey=(id,st)=>st>1&&EVO_ART.has(id)?id+'@'+st:id;
+const stSrc=(id,st)=>st>1&&EVO_ART.has(id)?`assets/${id}_s${st}_idle.webp`:imgSrc(id);
+const evImg=(id,st=stageOf(id),cls='')=>`<img loading="lazy" class="${cls} ${st>1&&!EVO_ART.has(id)?'pevo'+st:''} ${st>1?'evo'+st:''}" src="${stSrc(id,st)}" alt="${FIGHTERS[id].name}">`;
+let EVO_META=null;
+function ensureSkin(id,st){const k=skinKey(id,st);if(k===id)return ensureFighter(id);if(isLoaded(k))return Promise.resolve();if(LOADING[k])return LOADING[k];
+ return LOADING[k]=Promise.all([EVO_META?0:fetch('assets/evo.json').then(r=>r.json()).then(j=>EVO_META=j),loadImg(stSrc(id,st)),ensureFighter(id)]).then(([,im])=>{const m=EVO_META[id][st];META[k]={idle:m,attack:m,hurt:m};SPR[k]={idle:im,attack:im,hurt:im};const w=silhouette(im,'#fff'),r=silhouette(im,'#ff2040');SIL[k]={};['idle','attack','hurt'].forEach(p=>SIL[k][p]={w,r})}).catch(e=>{delete LOADING[k];throw e})}
+function glowSil(key,pose,col){const o=SIL[key][pose];return o[col]||(o[col]=silhouette(SPR[key][pose],col))}
+function grantXP(id,n){const b=xpOf(id),a=Math.min(LV_XP[MAXLV-1],b+n);S.xp[id]=a;save();return{id,b,a,lb:lvFromXp(b),la:lvFromXp(a),sb:stageOfLv(lvFromXp(b)),sa:stageOfLv(lvFromXp(a)),gain:a-b}}
+function xpBlock(x,lines){return`<div class="xpw" id="xpw"><div class="xph"><span class="xplv" id="xpLv">LV ${x.lb}</span><span id="xpGain">+0 XP</span></div><div class="xpbar"><i id="xpFill" style="width:${lvFrac(x.b)*100}%"></i></div><div class="xpl">${lines.join(' · ')}</div><div class="xpnext" id="xpNext">${nextTxt(x.id,x.b)}</div></div>`}
+function nextTxt(id,x){const l=lvFromXp(x);return l>=MAXLV?'MAX LEVEL - ASCENDED':l<5?`Evolves at LV5 (${5-l} to go)`:`Ascends at LV10 (${10-l} to go)`}
+function animXP(x,onDone){const el=$('#xpFill');if(!el||x.gain<=0){onDone&&onDone();return}const dur=Math.min(2.4,.9+x.gain/120),t0=performance.now();let lastL=x.lb,lastTick=0;
+ function fr(now){if(!$('#xpFill'))return;const k=Math.min(1,(now-t0)/1000/dur),e=1-Math.pow(1-k,2.2),cur=Math.round(x.b+(x.a-x.b)*e),l=lvFromXp(cur);
+  $('#xpFill').style.width=(lvFrac(cur)*100)+'%';$('#xpGain').textContent='+'+(cur-x.b)+' XP';$('#xpNext').textContent=nextTxt(x.id,cur);
+  if(now-lastTick>70&&k<1){lastTick=now;tone('square',600+lvFrac(cur)*900,600+lvFrac(cur)*900,.03,.05)}
+  if(l>lastL){lastL=l;$('#xpLv').textContent='LV '+l;const w=$('#xpw');w.classList.remove('pop');void w.offsetWidth;w.classList.add('pop');SFX.levelup();const b=document.createElement('div');b.className='lvup';b.textContent='LEVEL UP! LV '+l;w.appendChild(b);setTimeout(()=>b.remove(),1400)}
+  if(k<1)requestAnimationFrame(fr);else{SFX.coin();onDone&&setTimeout(onDone,450)}}
+ requestAnimationFrame(fr)}
+function evolveCutscene(id,from,to,onClose){const o=$('#evo'),F=FIGHTERS[id],m=lvMul(lvOf(id));SFX.evoCharge();
+ o.innerHTML=`<div class="rays"></div><div class="evst">${F.name.toUpperCase()} IS EVOLVING...</div><div class="evfig"><div class="evglow s${to}"></div>${evImg(id,from,'ev0')}${evImg(id,to,'ev1')}</div><div class="evtitle s${to}">${STAGE_NAME[to]}!</div><div class="evsub">STAGE ${to} · LV ${lvOf(id)} · +${Math.round((m.hp-1)*100)}% HP · +${Math.round((m.pow-1)*100)}% POWER</div><div class="evcmp"><div>${evImg(id,from)}<span>BEFORE</span></div><b>➜</b><div>${evImg(id,to)}<span>AFTER</span></div></div><button class="btn big" id="evOk">LET'S GO!</button><div class="evflash"></div>`;
+ o.className='on';o.dataset.to=to;setTimeout(()=>{o.classList.add('boom');SFX.evoBoom();if(navigator.vibrate)try{navigator.vibrate([60,40,140])}catch(e){}},1700);
+ $('#evOk').onclick=()=>{o.className='';o.innerHTML='';SFX.click();onClose&&onClose()}}
+function xpLines(won,extra){return extra}
 
 // ---------- STUBS ----------
 // Replace with CrazyGames/Poki rewarded ad. onDone only fires if the ad completed.
@@ -178,11 +218,11 @@ function renderHome(){setCoins();$('#hero').innerHTML=['cup','shark','duck'].map
 const st=(k,v,m)=>`<div class="stat"><span>${k}</span><div><i style="width:${clamp(v/m*100,8,100)}%"></i></div></div>`;
 function renderSelect(){setCoins();if(!owned(S.pick))S.pick='shark';const F=FIGHTERS[S.pick],donor=S.donor&&owned(S.donor)?S.donor:null,sp=donor?FIGHTERS[donor].sp:F.sp,t=tierOf(S.pick);
  $('#info').className='info'+(t?' prem t-'+t:'');
- $('#info').innerHTML=`<img src="${imgSrc(S.pick)}" alt=""><div class="t">${t?`<span class="chip t-${t}">${TLABEL(t)}</span>`:''}${fname(S.pick,donor)}<small>${F.title}${donor?' + '+FIGHTERS[donor].name+' special':''}</small>${st('HP',F.hp,1500)}${st('SPEED',F.spd,570)}${st('POWER',F.pow,1.3)}${st('WEIGHT',F.wt,1.6)}<small style="color:#ff3df2">SPECIAL: ${sp.name}</small><small class="desc">${sp.desc||''}</small>${F.proj?'<small style="color:#ffd23d">HEAVY fires a projectile</small>':''}${F.grab?'<small style="color:#ffd23d">HEAVY is a command GRAB (unblockable)</small>':''}${F.armorH?'<small style="color:#ffd23d">HEAVY has super armor</small>':''}</div>`;
+ const L=lvOf(S.pick),SG=stageOf(S.pick);$('#info').innerHTML=`${evImg(S.pick,SG)}<div class="t"><div class="lvrow"><span class="lvb s${SG}">LV ${L}${SG>1?' '+STAGE_NAME[SG]:''}</span><span class="mini"><i style="width:${lvFrac(xpOf(S.pick))*100}%"></i></span></div><small class="lvhint">${nextTxt(S.pick,xpOf(S.pick))}${L>1?` · +${Math.round((lvMul(L).hp-1)*100)}% HP +${Math.round((lvMul(L).pow-1)*100)}% PWR`:''}</small>${t?`<span class="chip t-${t}">${TLABEL(t)}</span>`:''}${fname(S.pick,donor)}<small>${F.title}${donor?' + '+FIGHTERS[donor].name+' special':''}</small>${st('HP',F.hp,1500)}${st('SPEED',F.spd,570)}${st('POWER',F.pow,1.3)}${st('WEIGHT',F.wt,1.6)}<small style="color:#ff3df2">SPECIAL: ${sp.name}</small><small class="desc">${sp.desc||''}</small>${F.proj?'<small style="color:#ffd23d">HEAVY fires a projectile</small>':''}${F.grab?'<small style="color:#ffd23d">HEAVY is a command GRAB (unblockable)</small>':''}${F.armorH?'<small style="color:#ffd23d">HEAVY has super armor</small>':''}</div>`;
  const r=Math.min(S.rung,LAST),opp=LADDER[r];$('#goBtn').textContent=`LADDER ${r+1}/${LADDER.length}: VS ${FIGHTERS[opp].name.toUpperCase()}`;
  const tab=S.tab||'all',list=IDS.filter(id=>tab==='all'||(tab==='unlocked'?owned(id):!!tierOf(id)));
  $('#tabs').innerHTML=[['all','ALL',IDS.length],['unlocked','UNLOCKED',IDS.filter(owned).length],['premium','PREMIUM',PREM_IDS.length+1]].map(([k,l,n])=>`<button class="tab ${tab===k?'on':''}" data-tab="${k}">${l} <b>${n}</b></button>`).join('');
- $('#grid').innerHTML=list.map(id=>{const o=owned(id),t=tierOf(id),P=t?CATALOG[productFor(id)]:null;return`<div class="fc ${S.pick===id?'sel':''} ${o?'':'lock'} ${t?'prem t-'+t:''}" data-id="${id}">${pimg(id)}<div class="nm">${o?FIGHTERS[id].name:t?fmt(P.price):`BEAT or ${UNLOCK_COST}c`}</div>${t?`<span class="tag">${TLABEL(t)}</span>`:''}${!o?'<span class="lk">LOCKED</span>':''}</div>`}).join('')||'<p class="hint">Nothing here yet.</p>';
+ $('#grid').innerHTML=list.map(id=>{const o=owned(id),t=tierOf(id),P=t?CATALOG[productFor(id)]:null;return`<div class="fc ${S.pick===id?'sel':''} ${o?'':'lock'} ${t?'prem t-'+t:''}" data-id="${id}">${o?evImg(id):pimg(id)}${o?`<span class="lvb s${stageOf(id)}">LV${lvOf(id)}${stageOf(id)>1?(stageOf(id)>2?'★★':'★'):''}</span>`:''}<div class="nm">${o?FIGHTERS[id].name:t?fmt(P.price):`BEAT or ${UNLOCK_COST}c`}</div>${t?`<span class="tag">${TLABEL(t)}</span>`:''}${!o?'<span class="lk">LOCKED</span>':''}</div>`}).join('')||'<p class="hint">Nothing here yet.</p>';
  const cost=60;$('#fuseHint').textContent=S.unlocked.length<2?'Unlock more fighters to fuse.':`Pick a donor: your fighter keeps its body and gets the donor's special. ${cost} coins each (first one free). Tap again to remove.`;
  $('#donors').innerHTML=IDS.filter(id=>owned(id)&&id!==S.pick).map(id=>`<div class="fc ${S.donor===id?'sel':''}" data-donor="${id}">${pimg(S.pick)}<div class="badge">${pimg(id)}</div><div class="nm">${fname(S.pick,id)}<br><span style="color:#ff3df2;font-size:9px">${FIGHTERS[id].sp.name}</span></div></div>`).join('')}
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;SFX.click();S.tab=b.dataset.tab;save();renderSelect();$('#grid').scrollTop=0});
@@ -274,7 +314,7 @@ const MV={
 const GRAV=2900,WL=70,WR=1530;
 let G=null;
 function newCtl(){return{l:0,r:0,blk:0,hvy:0,jumpE:0,lightE:0,heavyE:0,specE:0,dashE:0,blkE:0}}
-function mkFighter(id,donor,side,x){const F=FIGHTERS[id];return{id,F,sp:donor?FIGHTERS[donor].sp:F.sp,donor,side,x,y:0,vx:0,vy:0,dir:side?-1:1,hp:F.hp,max:F.hp,ghost:F.hp,meter:0,st:'idle',t:0,mv:null,mvT:0,hit:new Set,buf:null,chg:0,charging:false,blkT:-9,hs:0,combo:0,comboT:0,sq:0,sqv:0,flash:0,airHits:0,wallB:false,bounced:false,inv:0,trail:[],trailT:0,ctl:newCtl(),ai:side?{next:0,blkUntil:0,hvyUntil:0,moveUntil:0,moveDir:0,reacted:false,reactAt:-1}:null,spS:{},armor:0,rot:0,ko:false,maxCombo:0,taken:0,sc:F.h/300}}
+function mkFighter(id,donor,side,x,lv=1){const B=FIGHTERS[id],mu=lvMul(lv),F=Object.assign({},B,{hp:Math.round(B.hp*mu.hp),pow:+(B.pow*mu.pow).toFixed(3)}),stage=stageOfLv(lv),sk=skinKey(id,stage),skin=isLoaded(sk)?sk:id;return{id,lv,stage,skin,evoArt:skin!==id,vis:stage===3?1.1:stage===2?1.05:1,F,sp:donor?FIGHTERS[donor].sp:F.sp,donor,side,x,y:0,vx:0,vy:0,dir:side?-1:1,hp:F.hp,max:F.hp,ghost:F.hp,meter:0,st:'idle',t:0,mv:null,mvT:0,hit:new Set,buf:null,chg:0,charging:false,blkT:-9,hs:0,combo:0,comboT:0,sq:0,sqv:0,flash:0,airHits:0,wallB:false,bounced:false,inv:0,trail:[],trailT:0,ctl:newCtl(),ai:side?{next:0,blkUntil:0,hvyUntil:0,moveUntil:0,moveDir:0,reacted:false,reactAt:-1}:null,spS:{},armor:0,rot:0,ko:false,maxCombo:0,taken:0,sc:F.h/300}}
 const isAir=f=>f.y>.5||f.vy>0;
 function hurtBox(d){const s=d.sc;return d.st==='down'?{x0:d.x-70*s,x1:d.x+70*s,y0:d.y,y1:d.y+70}:{x0:d.x-50*s,x1:d.x+50*s,y0:d.y,y1:d.y+d.F.h*.86}}
 const overlap=(a,b)=>a.x0<b.x1&&a.x1>b.x0&&a.y0<b.y1&&a.y1>b.y0;
@@ -450,13 +490,14 @@ function pickOpp(me){const pool=IDS.filter(id=>id!=='boss'&&id!==me);return pick
 // kind: 'ladder' (rung), 'gauntlet' (random foes incl. premium, win streak), 'trial' (free 1-round test of a premium fighter, no rewards)
 async function startMatch(rung,cont,opts={}){audio();closeModal();const tok=++MATCH_TOKEN,kind=opts.trial?'trial':opts.gauntlet?'gauntlet':'ladder';
  const me=opts.trial||(owned(S.pick)?S.pick:'shark'),opp=opts.opp||(kind==='ladder'?LADDER[rung]:pickOpp(me)),donor=kind==='trial'?null:(S.donor&&owned(S.donor)&&S.donor!==me?S.donor:null);
- if(!isLoaded(me)||!isLoaded(opp))toast('Loading fighters...',1200);
- try{await Promise.all([ensureFighter(me),ensureFighter(opp)])}catch(e){console.warn(e);toast('Could not load fighter art. Check your connection.',3000);return}
+ const myLv=kind==='trial'?1:lvOf(me),oppLv=kind==='trial'?1:kind==='ladder'?clamp(1+Math.floor(rung*5.4/LAST+myLv*.45),1,MAXLV):clamp(1+Math.floor(S.gStreak*.5+myLv*.5),1,MAXLV);
+ if(!isLoaded(skinKey(me,stageOfLv(myLv)))||!isLoaded(skinKey(opp,stageOfLv(oppLv))))toast('Loading fighters...',1200);
+ try{await Promise.all([ensureSkin(me,stageOfLv(myLv)),ensureSkin(opp,stageOfLv(oppLv))])}catch(e){console.warn(e);toast('Could not load fighter art. Check your connection.',3000);return}
  if(tok!==MATCH_TOKEN)return;$('#toast').style.display='none';closeModal();$('#modal').dataset.lock='';$$('.scr').forEach(s=>s.classList.remove('on'));
  const diff=kind==='ladder'?DIFF[rung]:kind==='trial'?.3:Math.min(.92,.3+S.gStreak*.06);
- G={rung,kind,me,donor,opp,diff,need:kind==='trial'?1:2,round:cont?3:1,wins:cont?[1,1]:[0,0],time:0,cam:{x:800,w:1100},projs:[],freeze:0,mode:'fight',stats:{best:0,flawless:false},aiOff:false};
+ G={rung,kind,me,donor,opp,diff,need:kind==='trial'?1:2,round:cont?3:1,wins:cont?[1,1]:[0,0],time:0,cam:{x:800,w:1100},projs:[],freeze:0,mode:'fight',stats:{best:0,flawless:false},aiOff:false,myLv,oppLv};
  startRound();musicStart();$('#pad').classList.toggle('on',isTouch);$('#pauseBtn').style.display='block'}
-function startRound(){G.p1=mkFighter(G.me,G.donor,0,580);G.p2=mkFighter(G.opp,null,1,1020);
+function startRound(){G.p1=mkFighter(G.me,G.donor,0,580,G.myLv);G.p2=mkFighter(G.opp,null,1,1020,G.oppLv);
  if(G.round===1)for(const f of [G.p1,G.p2])if(f.F.prem){f.y=1150;f.vy=0;f.st='air';f.introDrop=1}G.timer=60;G.phase='intro';G.pt=0;G.s1=G.s2=G.s3=0;G.bubs=[];G.projs=[];G.freeze=0;G.superF=null;J.parts=[];J.texts=[];J.slow=1;J.slowT=0;clearEdges(PEND)}
 function roundKO(a,d){if(G.phase!=='fight')return;d.ko=true;G.phase='ko';G.koT=0;G.winner=a.side;G.wins[a.side]++;d.st='launched';d.mv=null;d.vy=Math.max(d.vy,950);d.vx=sgn(d.x-a.x)*750;d.wallB=false;d.bounced=false;
  slowmo(.22,1.3);hitstop(.28);shake(1.3);J.flash=.9;J.flashCol='#fff';SFX.boom();popText(W/2,H*.36,'K.O.!',a.side?'#ff3d3d':'#b6ff2e',fitSize(X,'K.O.!',130,W*.8),{hud:1,life:2.2,vy:0,rot:-.06});say('K. O.');
@@ -472,24 +513,26 @@ function endMatch(){G.mode='result';G.phase='end';musicStop();$('#pad').classLis
   modal(`<h1>${won?'TRIAL WON!':'TRIAL OVER'}</h1><div class="celeb t-${tierOf(me)}"><div class="aura"></div>${pimg(me)}</div><p><b>${FIGHTERS[me].name}</b> ${won?`beat ${FIGHTERS[opp].name}!`:`lost to ${FIGHTERS[opp].name}.`}<br>Free trial: no coins or progress.</p><div class="row">${o?`<button class="btn big" id="trPlay">OWNED - PLAY</button>`:`<button class="btn big gold" id="trBuy">GET ${FIGHTERS[me].name.toUpperCase()} - ${fmt(P.price)}</button>`}</div><div class="row"><button class="btn pink" id="retryBtn">TRY AGAIN</button><button class="btn grey" id="menuBtn">SHOP</button></div>`,'trialbox');
   if($('#trBuy'))$('#trBuy').onclick=()=>{quit();openShop(me);buyFlow(pid)};if($('#trPlay'))$('#trPlay').onclick=()=>{quit();S.pick=me;save();screen('select')};
   $('#retryBtn').onclick=()=>startMatch(0,false,{trial:me});$('#menuBtn').onclick=()=>{quit();openShop(me)};return}
+ const xpParts=[won?'WIN +'+(50+(kind==='ladder'?r*3:S.gStreak*4)):'FIGHT +20'];let xg=won?50+(kind==='ladder'?r*3:S.gStreak*4):20;if(G.stats.flawless){xg+=30;xpParts.push('PERFECT +30')}const cb=Math.min(30,(G.stats.best||0)*3);if(cb>=6){xg+=cb;xpParts.push(G.stats.best+'-HIT COMBO +'+cb)}if(G.oppLv>G.myLv){const ub=(G.oppLv-G.myLv)*8;xg+=ub;xpParts.push('UNDERDOG +'+ub)}
+ const XP=grantXP(me,xg),XPH=xpBlock(XP,xpParts),xpGo=()=>setTimeout(()=>animXP(XP,()=>{if(XP.sa>XP.sb)evolveCutscene(me,XP.sb,XP.sa)}),350);
  if(kind==='gauntlet'){if(won){S.gStreak++;S.gBest=Math.max(S.gBest,S.gStreak);const coins=30+S.gStreak*12+(G.stats.flawless?30:0);S.coins+=coins;S.wins++;let un=null;if(!FIGHTERS[opp].prem&&opp!=='boss'&&!owned(opp)){S.unlocked.push(opp);un=opp}S.bestCombo=Math.max(S.bestCombo,G.stats.best);save();SFX.fanfare();
-   modal(`<h1>STREAK x${S.gStreak}!</h1><p>Beat ${FIGHTERS[opp].name} ${G.wins[0]} - ${G.wins[1]}${G.stats.flawless?' | FLAWLESS +30':''}<br>Best streak: ${S.gBest}</p><p style="font-size:22px;color:#ffd23d">+<span id="wonCoins">${coins}</span> COINS</p>${un?`<p style="color:#b6ff2e">NEW FIGHTER UNLOCKED!</p><img class="pf" src="${imgSrc(un)}" alt=""><p>${FIGHTERS[un].name}</p>`:''}${FIGHTERS[opp].prem&&!owned(opp)?`<p style="color:#ffd23d">Liked ${FIGHTERS[opp].name}? It's ${TLABEL(FIGHTERS[opp].prem)} in the shop.</p>`:''}
+   modal(`<h1>STREAK x${S.gStreak}!</h1><p>Beat ${FIGHTERS[opp].name} ${G.wins[0]} - ${G.wins[1]}${G.stats.flawless?' | FLAWLESS +30':''}<br>Best streak: ${S.gBest}</p><p style="font-size:22px;color:#ffd23d">+<span id="wonCoins">${coins}</span> COINS</p>${XPH}${un?`<p style="color:#b6ff2e">NEW FIGHTER UNLOCKED!</p><img class="pf" src="${imgSrc(un)}" alt=""><p>${FIGHTERS[un].name}</p>`:''}${FIGHTERS[opp].prem&&!owned(opp)?`<p style="color:#ffd23d">Liked ${FIGHTERS[opp].name}? It's ${TLABEL(FIGHTERS[opp].prem)} in the shop.</p>`:''}
    <div class="row"><button class="btn big" id="nextBtn">NEXT OPPONENT</button></div><div class="row"><button class="btn gold" id="x2Btn">x2 COINS (AD)</button>${FIGHTERS[opp].prem&&!owned(opp)?'<button class="btn pink" id="seeShop">SEE IN SHOP</button>':''}<button class="btn grey" id="menuBtn">MENU</button></div>`);
    $('#nextBtn').onclick=()=>startMatch(0,false,{gauntlet:1});$('#x2Btn').onclick=()=>showAd(()=>{S.coins+=coins;save();setCoins();$('#wonCoins').textContent=coins*2;$('#x2Btn').disabled=true;SFX.coin();toast('Coins doubled!')});if($('#seeShop'))$('#seeShop').onclick=()=>{quit();openShop(opp)}}
   else{const streak=S.gStreak,c=5+streak*3;S.gStreak=0;S.coins+=c;save();SFX.womp();
-   modal(`<h1>GAUNTLET OVER</h1><img class="pf" src="${imgSrc(opp,'attack')}" alt=""><p>${FIGHTERS[opp].name} ended your run. "${pick(FIGHTERS[opp].lines)}"</p><p style="font-size:20px;color:#ffd23d">STREAK: ${streak} | BEST: ${S.gBest}</p><p>+${c} coins</p><div class="row"><button class="btn pink" id="retryBtn">NEW RUN (R)</button><button class="btn grey" id="menuBtn">MENU</button></div>`);
+   modal(`<h1>GAUNTLET OVER</h1><img class="pf" src="${imgSrc(opp,'attack')}" alt=""><p>${FIGHTERS[opp].name} ended your run. "${pick(FIGHTERS[opp].lines)}"</p><p style="font-size:20px;color:#ffd23d">STREAK: ${streak} | BEST: ${S.gBest}</p><p>+${c} coins</p>${XPH}<div class="row"><button class="btn pink" id="retryBtn">NEW RUN (R)</button><button class="btn grey" id="menuBtn">MENU</button></div>`);
    $('#retryBtn').onclick=()=>startMatch(0,false,{gauntlet:1})}
-  $('#menuBtn').onclick=()=>{quit();screen('select')};return}
+  $('#menuBtn').onclick=()=>{quit();screen('select')};xpGo();return}
  if(won){const coins=40+r*9+(G.stats.flawless?30:0);S.coins+=coins;S.wins++;if(S.rung<=r)S.rung=r+1;let un=null;if(!S.unlocked.includes(opp)){S.unlocked.push(opp);un=opp}S.bestCombo=Math.max(S.bestCombo,G.stats.best);save();SFX.fanfare();
-  modal(`<h1>${r===LAST?'LADDER CLEARED!':'VICTORY!'}</h1><p>${G.wins[0]} - ${G.wins[1]} vs ${FIGHTERS[opp].name}${G.stats.flawless?' | FLAWLESS +30':''}<br>Best combo: ${G.stats.best} hits</p><p style="font-size:22px;color:#ffd23d">+<span id="wonCoins">${coins}</span> COINS</p>${un?`<p style="color:#b6ff2e">NEW FIGHTER UNLOCKED!</p><img class="pf" src="${imgSrc(un)}" alt=""><p>${FIGHTERS[un].name}</p>`:''}
+  modal(`<h1>${r===LAST?'LADDER CLEARED!':'VICTORY!'}</h1><p>${G.wins[0]} - ${G.wins[1]} vs ${FIGHTERS[opp].name}${G.stats.flawless?' | FLAWLESS +30':''}<br>Best combo: ${G.stats.best} hits</p><p style="font-size:22px;color:#ffd23d">+<span id="wonCoins">${coins}</span> COINS</p>${XPH}${un?`<p style="color:#b6ff2e">NEW FIGHTER UNLOCKED!</p><img class="pf" src="${imgSrc(un)}" alt=""><p>${FIGHTERS[un].name}</p>`:''}
   <div class="row">${r<LAST?'<button class="btn big" id="nextBtn">NEXT FIGHT</button>':''}</div><div class="row"><button class="btn gold" id="x2Btn">x2 COINS (AD)</button><button class="btn blue" id="shareBtn">SHARE</button><button class="btn grey" id="menuBtn">MENU</button></div>`);
   if($('#nextBtn'))$('#nextBtn').onclick=()=>startMatch(r+1);
   $('#x2Btn').onclick=()=>showAd(()=>{S.coins+=coins;save();setCoins();$('#wonCoins').textContent=coins*2;$('#x2Btn').disabled=true;SFX.coin();toast('Coins doubled!')});
   $('#shareBtn').onclick=()=>{quit();screen('home');shareCard()}}
  else{const c=5+r*2;S.coins+=c;save();SFX.womp();
-  modal(`<h1>BRAINROTTED</h1><img class="pf" src="${imgSrc(opp,'attack')}" alt=""><p>${FIGHTERS[opp].name} wins ${G.wins[1]} - ${G.wins[0]}. "${pick(FIGHTERS[opp].lines)}"</p><p style="color:#b6ff2e">TIP: ${pick(TIPS)}</p><p>+${c} pity coins</p><div class="row"><button class="btn gold" id="contBtn">CONTINUE (AD) - start at 1-1</button></div><div class="row"><button class="btn pink" id="retryBtn">RETRY (R)</button><button class="btn grey" id="menuBtn">MENU</button></div>`);
+  modal(`<h1>BRAINROTTED</h1><img class="pf" src="${imgSrc(opp,'attack')}" alt=""><p>${FIGHTERS[opp].name} wins ${G.wins[1]} - ${G.wins[0]}. "${pick(FIGHTERS[opp].lines)}"</p><p style="color:#b6ff2e">TIP: ${pick(TIPS)}</p><p>+${c} pity coins</p>${XPH}<div class="row"><button class="btn gold" id="contBtn">CONTINUE (AD) - start at 1-1</button></div><div class="row"><button class="btn pink" id="retryBtn">RETRY (R)</button><button class="btn grey" id="menuBtn">MENU</button></div>`);
   $('#contBtn').onclick=()=>showAd(()=>startMatch(r,true));$('#retryBtn').onclick=()=>startMatch(r)}
- $('#menuBtn').onclick=()=>{quit();screen('select')}}
+ $('#menuBtn').onclick=()=>{quit();screen('select')};xpGo()}
 const TIPS=['Tap BLOCK right before a hit lands to PARRY: they get stunned, you get a free combo.','PUNCH x3 then HEAVY while they are in the air = juggle.','Hold HEAVY to charge. Full charge launches them sky high.','In the air, HEAVY is a meteor spike. Spike them into a ground bounce.','Knock them into the wall for a WALL BOUNCE and keep juggling.','Double-tap a direction to dash in (or out).','Special meter fills when you hit AND when you get hit. Use it!'];
 function quit(){G=null;musicStop();closeModal();$('#modal').dataset.lock='';$('#pad').classList.remove('on');$('#pauseBtn').style.display='none';X.setTransform(1,0,0,1,0,0);X.clearRect(0,0,cv.width,cv.height)}
 function leaveMatch(){if(!G)return;const k=G.kind,me=G.me;quit();if(k==='trial')openShop(me);else screen('select')}
@@ -542,8 +585,10 @@ function drawBG(c){const {s,cx,fy}=VIEW;c.fillStyle='#0d0020';c.fillRect(0,0,W,H
  c.drawImage(BG,bx,by,bw,bh);if(bx>0||bx+bw<W){c.save();c.scale(-1,1);c.drawImage(BG,-bx,by,bw,bh);c.drawImage(BG,-(bx+2*bw),by,bw,bh);c.restore()}
  if(by+bh<H){const g=c.createLinearGradient(0,by+bh-2,0,H);g.addColorStop(0,'#3a0d78');g.addColorStop(1,'#12002b');c.fillStyle=g;c.fillRect(0,by+bh-2,W,H-(by+bh)+2)}
  if(by>0){const g=c.createLinearGradient(0,0,0,by+2);g.addColorStop(0,'#05000f');g.addColorStop(1,'#0d0326');c.fillStyle=g;c.fillRect(0,0,W,by+2)}}
-function drawSprite(c,f,pose,x,y,dir,rot,sx,sy,alpha,sil){if(!SPR[f.id])return;const img=sil?SIL[f.id][pose][sil]:SPR[f.id][pose],m=META[f.id][pose],k=f.F.h/META[f.id].idle.h;
- c.save();c.globalAlpha=alpha;if(f.st==='down'&&!sil){c.translate(x+dir*f.F.h*.42,-(y+26));c.rotate(-dir*1.42)}else{c.translate(x,-(y+f.F.h*.5));c.rotate(rot);c.translate(0,f.F.h*.5)}c.scale(dir*k*sx,k*sy);c.drawImage(img,-m.ax,-m.ay,m.w,m.h);c.restore()}
+function drawSprite(c,f,pose,x,y,dir,rot,sx,sy,alpha,sil){const K=f.skin||f.id;if(!SPR[K])return;const img=sil?SIL[K][pose][sil]:SPR[K][pose],m=META[K][pose],k=f.F.h/META[K].idle.h*(f.vis||1);
+ if(f.evoArt&&!sil){if(pose==='attack'){rot+=dir*.2;sx*=1.12;sy*=.94;x+=dir*f.F.h*.08}else if(pose==='hurt'){rot-=dir*.22;sx*=.94}}
+ c.save();c.globalAlpha=alpha;if(f.st==='down'&&!sil){c.translate(x+dir*f.F.h*.42,-(y+26));c.rotate(-dir*1.42)}else{c.translate(x,-(y+f.F.h*.5));c.rotate(rot);c.translate(0,f.F.h*.5)}c.scale(dir*k*sx,k*sy);if(f.stage>1&&!sil&&!f.ko){const gc=STAGE_COL[f.stage],gi=glowSil(K,pose,gc),pu=.45+.25*Math.sin((G?G.time:0)*6);c.save();c.globalAlpha=alpha*pu;c.globalCompositeOperation='lighter';c.drawImage(gi,-m.ax*1.07,-m.ay*1.045,m.w*1.07,m.h*1.045);c.restore()}c.drawImage(img,-m.ax,-m.ay,m.w,m.h);if(f.stage>1&&!sil&&!f.evoArt){c.globalAlpha=alpha*(f.stage>2?.22:.16);c.drawImage(glowSil(K,pose,STAGE_COL[f.stage]),-m.ax,-m.ay,m.w,m.h)}c.restore()}
+function drawCrown(c,x,y,s){c.save();c.translate(x,y);c.scale(s*1.3,s*1.3);c.shadowColor='#ffd23d';c.shadowBlur=18;c.fillStyle='#ffd23d';c.strokeStyle='#000';c.lineWidth=4;c.beginPath();c.moveTo(-34,10);c.lineTo(-38,-18);c.lineTo(-18,-2);c.lineTo(0,-26);c.lineTo(18,-2);c.lineTo(38,-18);c.lineTo(34,10);c.closePath();c.fill();c.stroke();c.shadowBlur=0;c.fillStyle='#ff3df2';[-20,0,20].forEach(px=>{c.beginPath();c.arc(px,2,4.5,0,7);c.fill()});c.restore()}
 function drawPremAura(c,f){const T=G.time,t=f.F.prem,col=premCols(t)[0],cy=-(f.y+f.F.h*.5),R=f.F.h*.72*(1+.06*Math.sin(T*4+f.side));
  if(f.introDrop){const g=c.createLinearGradient(0,-2400,0,0);g.addColorStop(0,'#fff0');g.addColorStop(1,col);c.save();c.globalAlpha=.55;c.fillStyle=g;c.fillRect(f.x-90*f.sc,-2400,180*f.sc,2400);c.globalAlpha=.8;c.fillStyle='#fff';c.fillRect(f.x-18,-2400,36,2400);c.restore()}
  c.save();c.globalCompositeOperation='lighter';const g=c.createRadialGradient(f.x,cy,R*.15,f.x,cy,R);g.addColorStop(0,col.startsWith('hsl')?col.replace(')',',.55)').replace('hsl','hsla'):col+'88');g.addColorStop(1,'#0000');c.fillStyle=g;c.beginPath();c.ellipse(f.x,cy,R*.85,R,0,0,7);c.fill();
@@ -563,6 +608,7 @@ function drawFighter(c,f){const pose=poseOf(f),T=G.time;if(f.F.prem&&!f.ko)drawP
  const P2=(G.phase==='ko'&&f.side===G.winner&&G.koT>.9)?'attack':pose;
  if(f.armor||(f.st==='special'&&f.t<.15)){c.save();c.globalAlpha=.5+.3*Math.sin(T*30);c.fillStyle=f.F.col;c.beginPath();c.arc(f.x,-(f.y+f.F.h*.5),f.F.h*.62,0,7);c.fill();c.restore()}
  drawSprite(c,f,P2,x,y,f.dir,rot,sx,sy,1);
+ if(f.stage>1&&!f.ko){if(Math.random()<(f.stage>2?.35:.18))burst(f.x+rand(-60,60)*f.sc,-(f.y+rand(20,f.F.h)),1,f.stage>2?['#ffd23d','#fff3a0']:['#2ec5ff','#bff4ff'],{spd:60,up:260,size:f.stage>2?7:5,k:f.stage>2&&Math.random()<.4?'star':undefined});if(f.stage>2&&!f.evoArt)drawCrown(c,x,-(y+f.F.h*(f.vis||1)*1.02+18+Math.sin(T*3)*6),f.sc)}
  if(f.flash>0)drawSprite(c,f,P2,x,y,f.dir,rot,sx,sy,Math.min(1,f.flash),'w');
  if(f.charging||(f.st==='attack'&&f.side===1&&f.mv&&f.mv.charge&&f.mvT<f.mv.st))drawSprite(c,f,P2,x,y,f.dir,rot,sx,sy,.35+.25*Math.sin(T*40),'r');
  if(f.st==='block'||f.st==='blockstun'){const cx=f.x+f.dir*70*f.sc,cy=-(f.y+f.F.h*.5);c.save();c.strokeStyle='#2ec5ff';c.lineWidth=12;c.globalAlpha=f.st==='blockstun'?.95:.6;c.shadowColor='#2ec5ff';c.shadowBlur=20;c.beginPath();c.arc(f.x,cy,f.F.h*.55,f.dir>0?-1:Math.PI-1,f.dir>0?1:Math.PI+1);c.stroke();c.restore()}
@@ -592,15 +638,15 @@ function drawSpecialFX(c,f){if(f.st!=='special')return;const t=f.t,T=G.time,s=f.
  if(f.sp.type==='beam'&&t>.25&&t<1.05){const x0=f.x+f.dir*40,len=1500*f.dir,h=f.sp.w||150,BC=f.sp.col||'#ff3df2';const g=c.createLinearGradient(0,-h,0,0);g.addColorStop(0,BC+'00');g.addColorStop(.3,BC);g.addColorStop(.5,'#fff');g.addColorStop(.7,BC);g.addColorStop(1,BC+'00');c.fillStyle=g;c.globalAlpha=.85+.15*Math.sin(T*60);c.fillRect(Math.min(x0,x0+len),-h-rand(0,10),Math.abs(len),h+10);c.globalAlpha=1}
  if(f.sp.type==='aura'&&t<.9){c.save();c.translate(f.x,-(f.y+f.F.h*.55));c.rotate(T*8);for(let i=0;i<12;i++){c.rotate(Math.PI/6);c.fillStyle=f.sp.col?(i%2?f.sp.col+'66':'#ffffff33'):(i%2?'#ff3df255':'#2ec5ff55');c.beginPath();c.moveTo(0,0);c.lineTo(-24,-240);c.lineTo(24,-240);c.fill()}c.restore()}}
 function drawHud(c){c.setTransform(DPR,0,0,DPR,0,0);const top=8,bw=Math.min(W*.36,430),p=G.p1,q=G.p2;
- [p,q].forEach((f,i)=>{const px=i?W-36:36,py=top+30;c.save();c.beginPath();c.arc(px,py,27,0,7);c.fillStyle='#2a0a52';c.fill();c.clip();const img=SPR[f.id]&&SPR[f.id].idle,m=META[f.id].idle;const ph=m.h*.5,pw=ph;c.translate(px,py);if(i)c.scale(-1,1);if(img)c.drawImage(img,m.ax-pw/2,0,pw,ph,-30,-26,60,60);c.restore();c.lineWidth=4;c.strokeStyle='#000';c.beginPath();c.arc(px,py,27,0,7);c.stroke();
+ [p,q].forEach((f,i)=>{const px=i?W-36:36,py=top+30;c.save();c.beginPath();c.arc(px,py,27,0,7);c.fillStyle='#2a0a52';c.fill();c.clip();const K=f.skin||f.id,img=SPR[K]&&SPR[K].idle,m=META[K].idle;const ph=m.h*.5,pw=ph;c.translate(px,py);if(i)c.scale(-1,1);if(img)c.drawImage(img,m.ax-pw/2,0,pw,ph,-30,-26,60,60);c.restore();c.lineWidth=4;c.strokeStyle='#000';c.beginPath();c.arc(px,py,27,0,7);c.stroke();
   const x=i?W-70-bw:70,y=top+10,h=20,fr=clamp(f.hp/f.max,0,1),gr=clamp(f.ghost/f.max,0,1);c.fillStyle='#000';c.beginPath();c.roundRect(x-3,y-3,bw+6,h+6,9);c.fill();c.fillStyle='#fff';c.fillRect(i?x+bw*(1-gr):x,y,bw*gr,h);const g=c.createLinearGradient(0,y,0,y+h);g.addColorStop(0,fr<.25?'#ff6a6a':i?'#ff6af2':'#7dff9a');g.addColorStop(1,fr<.25?'#c40000':i?'#a3009c':'#18a83a');c.fillStyle=g;c.fillRect(i?x+bw*(1-fr):x,y,bw*fr,h);c.fillStyle='#fff3';c.fillRect(x,y,bw,5);
-  c.font='900 12px system-ui,sans-serif';c.textBaseline='top';c.textAlign=i?'right':'left';c.fillStyle='#fff';c.lineWidth=3;c.strokeStyle='#000';const nm=f.donor?fname(f.id,f.donor):f.F.name;c.strokeText(nm,i?x+bw:x,y+h+5);c.fillText(nm,i?x+bw:x,y+h+5);
+  c.font='900 12px system-ui,sans-serif';c.textBaseline='top';c.textAlign=i?'right':'left';c.fillStyle='#fff';c.lineWidth=3;c.strokeStyle='#000';const nm=(f.donor?fname(f.id,f.donor):f.F.name)+'  LV'+f.lv+(f.stage>1?(f.stage>2?' ★★':' ★'):'');c.strokeText(nm,i?x+bw:x,y+h+5);c.fillStyle=f.stage>1?STAGE_COL[f.stage]:'#fff';c.fillText(nm,i?x+bw:x,y+h+5);c.lineWidth=3;c.strokeStyle=f.stage>1?STAGE_COL[f.stage]:'#000';c.beginPath();c.arc(px,py,30,0,7);c.stroke();c.strokeStyle='#000';
   for(let k=0;k<2;k++){const cx=i?x+bw-110-k*18:x+110+k*18;c.beginPath();c.arc(i?x+bw-k*16-8:x+k*16+8,y+h+34,6,0,7);c.fillStyle=G.wins[i]>k?'#ffd23d':'#0008';c.fill();c.lineWidth=2;c.stroke()}
   const mw=bw*.62,mx=i?x+bw-mw:x,my=y+h+22;c.fillStyle='#000';c.fillRect(mx-2,my-2,mw+4,9);const mf=f.meter/100;c.fillStyle=mf>=1?`hsl(${G.time*400%360},100%,60%)`:'#ff3df2';c.fillRect(i?mx+mw*(1-mf):mx,my,mw*mf,5);if(mf>=1&&Math.sin(G.time*12)>0){c.font='900 10px system-ui';c.fillStyle='#fff';c.textAlign=i?'right':'left';c.fillText('SPECIAL READY'+(i?'':' (U)'),i?mx+mw:mx,my+8)}
   if(f.combo>=2&&G.time-f.comboT<1.1){const age=G.time-f.comboT,s=1+Math.max(0,.4-age*3);c.save();c.translate(i?W*.8:W*.2,H*(H>W?.2:.3));c.scale(s,s);c.rotate(i?.06:-.06);txt(c,f.combo+' HITS',0,0,fitSize(c,'00 HITS',44,W*.35),f.combo>=8?`hsl(${G.time*500%360},100%,62%)`:'#ffd23d');txt(c,'COMBO',0,30,16,'#fff');c.restore()}});
  c.fillStyle='#000a';c.beginPath();c.roundRect(W/2-30,top,60,44,10);c.fill();txt(c,Math.ceil(G.timer)+'',W/2,top+23,30,G.timer<10&&Math.sin(G.time*10)>0?'#ff3d3d':'#fff',{lw:5});if(G.kind!=='ladder')txt(c,G.kind==='trial'?'FREE TRIAL':'STREAK '+S.gStreak,W/2,top+58,13,G.kind==='trial'?'#ffd23d':'#b6ff2e',{lw:4});
  if(G.freeze>0&&G.superF){const f=G.superF,k=1-G.freeze/.65,L=f.side===0;c.fillStyle=`rgba(0,0,0,${.55})`;c.fillRect(0,0,W,H);c.save();c.translate(W/2,H*.42);c.rotate(-.12);c.fillStyle=f.F.col;c.fillRect(-W,-H*.13,W*2,H*.26);c.fillStyle='#000';c.fillRect(-W,-H*.13,W*2,6);c.fillRect(-W,H*.13-6,W*2,6);c.restore();
-  const img=SPR[f.id].attack,m=META[f.id].attack,ih=H*.42,iw=ih*m.w/m.h,sl=easeOutBack(Math.min(1,k*3));c.save();c.translate(L?lerp(-iw,W*.04,sl):lerp(W+iw,W*.96,sl),H*.63);if(!L)c.scale(-1,1);c.drawImage(img,0,-ih,iw,ih);c.restore();
+  const img=SPR[f.skin||f.id].attack,m=META[f.skin||f.id].attack,ih=H*.42,iw=ih*m.w/m.h,sl=easeOutBack(Math.min(1,k*3));c.save();c.translate(L?lerp(-iw,W*.04,sl):lerp(W+iw,W*.96,sl),H*.63);if(!L)c.scale(-1,1);c.drawImage(img,0,-ih,iw,ih);c.restore();
   txt(c,f.sp.name,W/2+(L?W*.12:-W*.12),H*.42,fitSize(c,f.sp.name,54,W*.6),'#fff',{lw:9})}
  drawTexts(c,true);if(J.flash>0){c.globalAlpha=Math.min(1,J.flash);c.fillStyle=J.flashCol;c.fillRect(0,0,W,H);c.globalAlpha=1}}
 function render(){const c=X;camera();const {s,cx,fy}=VIEW,tr=J.trauma*J.trauma,shx=(Math.random()*2-1)*tr*24,shy=(Math.random()*2-1)*tr*24;
@@ -640,4 +686,4 @@ if(DEBUG){window.__test={get G(){return G},get S(){return S},get lastCard(){retu
  koP2:()=>{const p=G.p1,q=G.p2;q.hp=1;resolveHit(p,q,{dmg:999,kx:600,ky:900,launch:1,hs:.5,hstop:.1,shake:.5,sfx:'heavy',fromX:p.x})},
  koP1:()=>{const p=G.p1,q=G.p2;p.hp=1;p.inv=0;p.st='idle';resolveHit(q,p,{dmg:999,kx:600,ky:900,launch:1,hs:.5,hstop:.1,shake:.5,sfx:'heavy',fromX:q.x,unblockable:1})},
  skipKO:()=>{if(G.phase==='ko')G.koT=9},place:(x1,x2)=>{G.p1.x=x1;G.p2.x=x2},makeCard:()=>makeCard().toDataURL().length,
- unlockAll:()=>{IDS.forEach(id=>{if(!S.unlocked.includes(id))S.unlocked.push(id)});save()},setPick:id=>{S.pick=id;S.donor=null;save()},ensureFighter,isLoaded,CATALOG,PAYMENTS,purchase,openShop,buyFlow,receipts,IDS,PREM_IDS,LADDER,special:()=>{PEND.specE=1}}}
+ unlockAll:()=>{IDS.forEach(id=>{if(!S.unlocked.includes(id))S.unlocked.push(id)});save()},setPick:id=>{S.pick=id;S.donor=null;save()},ensureFighter,isLoaded,CATALOG,PAYMENTS,purchase,openShop,buyFlow,receipts,IDS,PREM_IDS,LADDER,special:()=>{PEND.specE=1},grantXP:(id,n)=>{const r=grantXP(id||S.pick,n);if(r.sa>r.sb)evolveCutscene(r.id,r.sb,r.sa);renderSelect();return r},setXP:(id,n)=>{S.xp[id]=n;save()},evolve:(id,from,to)=>evolveCutscene(id,from,to),lvOf,stageOf,ensureSkin,EVO_ART:[...EVO_ART]}}

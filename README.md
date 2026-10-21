@@ -26,3 +26,10 @@ Live: https://brainrot-battle-eight.vercel.app
 - **Payments are a TEST stub** (`PAYMENTS.mode='test'` in game.js). `purchase(productId)` records a simulated receipt. To go live, put Stripe Payment Links in `PAYMENTS.stripeLinks[productId]` and grant the fighter on your success redirect or webhook.
 - GAUNTLET: random opponents and a win streak. Beating a regular fighter unlocks it.
 - Sprites lazy-load per fighter.
+
+## Levels & evolution
+- Every fighter earns XP per fight (win 50+, loss 20, perfect +30, combo up to +30, underdog bonus). LV 1-10, +2.5% HP / +2% power per level.
+- LV5 = EVOLVED (stage 2), LV10 = ASCENDED (stage 3) with a full-screen evolution cutscene.
+- Real evolved art (assets/*_s2_idle.webp, *_s3_idle.webp, meta in assets/evo.json) for 14 core fighters; others get a procedural glow/tint/crown/particles upgrade.
+- Ladder/Gauntlet opponents scale in level with rung/streak and your level.
+- Debug (`?debug`): `__test.grantXP(id,n)`, `__test.setXP(id,n)`, `__test.evolve(id,from,to)`.
