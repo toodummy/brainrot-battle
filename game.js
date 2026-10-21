@@ -221,7 +221,7 @@ function renderHome(){setCoins();$('#hero').innerHTML=['cup','shark','duck'].map
 const st=(k,v,m)=>`<div class="stat"><span>${k}</span><div><i style="width:${clamp(v/m*100,8,100)}%"></i></div></div>`;
 function renderSelect(){setCoins();if(!owned(S.pick))S.pick='shark';const F=FIGHTERS[S.pick],donor=S.donor&&owned(S.donor)?S.donor:null,sp=donor?FIGHTERS[donor].sp:F.sp,t=tierOf(S.pick);
  $('#info').className='info'+(t?' prem t-'+t:'');
- const L=lvOf(S.pick),SG=stageOf(S.pick);$('#info').innerHTML=`${evImg(S.pick,SG)}<div class="t"><div class="lvrow"><span class="lvb s${SG}">LV ${L}${SG>1?' '+STAGE_NAME[SG]:''}</span><span class="mini"><i style="width:${lvFrac(xpOf(S.pick))*100}%"></i></span></div><small class="lvhint">${nextTxt(S.pick,xpOf(S.pick))}${L>1?` · +${Math.round((lvMul(L).hp-1)*100)}% HP +${Math.round((lvMul(L).pow-1)*100)}% PWR`:''}</small>${t?`<span class="chip t-${t}">${TLABEL(t)}</span>`:''}${fname(S.pick,donor)}<small>${F.title}${donor?' + '+FIGHTERS[donor].name+' special':''}</small>${st('HP',F.hp,1500)}${st('SPEED',F.spd,570)}${st('POWER',F.pow,1.3)}${st('WEIGHT',F.wt,1.6)}<small style="color:#ff3df2">SPECIAL: ${sp.name}</small><small class="desc">${sp.desc||''}</small>${F.proj?'<small style="color:#ffd23d">HEAVY fires a projectile</small>':''}${F.grab?'<small style="color:#ffd23d">HEAVY is a command GRAB (unblockable)</small>':''}${F.armorH?'<small style="color:#ffd23d">HEAVY has super armor</small>':''}</div>`;
+ const L=lvOf(S.pick),SG=stageOf(S.pick);$('#info').innerHTML=`${evImg(S.pick,SG)}<div class="t"><div class="lvrow"><span class="lvb s${SG}">LV ${L}${SG>1?' '+STAGE_NAME[SG]:''}</span><span class="mini"><i style="width:${lvFrac(xpOf(S.pick))*100}%"></i></span></div><small class="lvhint">${nextTxt(S.pick,xpOf(S.pick))}${L>1?` · +${Math.round((lvMul(L).hp-1)*100)}% HP +${Math.round((lvMul(L).pow-1)*100)}% PWR`:''}</small>${t?`<span class="chip t-${t}">${TLABEL(t)}</span>`:''}${fname(S.pick,donor)}<small>${F.title}${donor?' + '+FIGHTERS[donor].name+' special':''}</small>${st('HP',F.hp,1500)}${st('SPEED',F.spd,570)}${st('POWER',F.pow,1.3)}${st('WEIGHT',F.wt,1.6)}<small style="color:#ff3df2">SPECIALS (random): ${(donor?spList(donor):spList(S.pick)).map(x=>x.name).join(' · ')}</small><small class="desc">${sp.desc||''}</small>${F.proj?'<small style="color:#ffd23d">HEAVY fires a projectile</small>':''}${F.grab?'<small style="color:#ffd23d">HEAVY is a command GRAB (unblockable)</small>':''}${F.armorH?'<small style="color:#ffd23d">HEAVY has super armor</small>':''}</div>`;
  const r=Math.min(S.rung,LAST),opp=LADDER[r];$('#goBtn').textContent=`LADDER ${r+1}/${LADDER.length}: VS ${FIGHTERS[opp].name.toUpperCase()}`;
  const tab=S.tab||'all',list=IDS.filter(id=>tab==='all'||(tab==='unlocked'?owned(id):!!tierOf(id)));
  $('#tabs').innerHTML=[['all','ALL',IDS.length],['unlocked','UNLOCKED',IDS.filter(owned).length],['premium','PREMIUM',PREM_IDS.length+1]].map(([k,l,n])=>`<button class="tab ${tab===k?'on':''}" data-tab="${k}">${l} <b>${n}</b></button>`).join('');
@@ -317,7 +317,55 @@ const MV={
 const GRAV=2900,WL=70,WR=1530;
 let G=null;
 function newCtl(){return{l:0,r:0,blk:0,hvy:0,jumpE:0,lightE:0,heavyE:0,specE:0,dashE:0,blkE:0}}
-function mkFighter(id,donor,side,x,lv=1){const B=FIGHTERS[id],mu=lvMul(lv),F=Object.assign({},B,{hp:Math.round(B.hp*mu.hp),pow:+(B.pow*mu.pow).toFixed(3)}),stage=stageOfLv(lv),sk=skinKey(id,stage),skin=isLoaded(sk)?sk:id;return{id,lv,stage,skin,evoArt:skin!==id,vis:stage===3?1.1:stage===2?1.05:1,F,sp:donor?FIGHTERS[donor].sp:F.sp,donor,side,x,y:0,vx:0,vy:0,dir:side?-1:1,hp:F.hp,max:F.hp,ghost:F.hp,meter:0,st:'idle',t:0,mv:null,mvT:0,hit:new Set,buf:null,chg:0,charging:false,blkT:-9,hs:0,combo:0,comboT:0,sq:0,sqv:0,flash:0,airHits:0,wallB:false,bounced:false,inv:0,trail:[],trailT:0,ctl:newCtl(),ai:side?{next:0,blkUntil:0,hvyUntil:0,moveUntil:0,moveDir:0,reacted:false,reactAt:-1}:null,spS:{},armor:0,rot:0,ko:false,maxCombo:0,taken:0,sc:F.h/300}}
+// ---------- 5 SPECIALS PER FIGHTER ----------
+const SPX_RAW={
+shark:'BITE RUSH|flurry|#4aa3ff||CHOMPED!;WATER TORRENT|beam|#2ec5ff||SOAKED!;FIN TSUNAMI|tsunami|#4aa3ff||WASHED!;DEPTH CHARGE|meteor|#1a6dff||SUNK!',
+cup:'LATTE LASER|beam|#d79a5a||FROTHED!;BEAN BARRAGE|volley|#6b3b1c|pit|BEANED!;STEAM VORTEX|vortex|#fff2e0||STEAMED!;BARISTA SUPLEX|suplex|#d79a5a||RE-BREWED!',
+duck:'MARKET CRASH|meteor|#ffd23d||BANKRUPT!;PINK SLIP RAIN|rain|#fff|case|FIRED!;BOARDROOM BEAM|beam|#3dff8a||DOWNSIZED!;GOLDEN PARACHUTE|teleport|#ffd23d||OUTSOURCED!',
+toaster:'FLAME JET|beam|#ff5a1a||CRISPY!;BREAD BOMBER|rain|#ff7a1a|toast|BURNT!;CRUMB QUAKE|quake|#c98a4a||CRUMBLED!;POP-UP UPPERCUT|haymaker|#ff3b1a||POPPED UP!',
+cactus:'NEEDLE STORM|rain|#3fcf5a|star|PRICKED!;TUMBLEWEED ROLL|rush|#e6c27a||TUMBLED!;DESERT QUAKE|shockwave|#e6c27a||DRIED UP!;SPINE JAVELIN|boomerang|#3fcf5a|disc|SKEWERED!',
+banana:'PEEL BOOMERANG|boomerang|#ffe03d|disc|SLIPPED!;SPLIT SPIN|rush|#ffe03d||SPLIT!;BUNCH BARRAGE|volley|#ffe03d|pit|BUNCHED!;MONKEY BUSINESS|flurry|#ffcc00||BANANAS!',
+broc:'FLORET FLURRY|flurry|#6ae04a||STEAMED!;ROOT ERUPTION|quake|#3d8a2a||ROOTED!;SALAD TOSS|suplex|#6ae04a||TOSSED!;CHLOROPHYLL BEAM|beam|#9cff3d||PHOTOSYNTHED!',
+toilet:'PLUNGER SLAM|haymaker|#9fe6ff||PLUNGED!;ARIA BEAM|beam|#9fe6ff||HIGH C!;BUBBLE BATH|volley|#bfe9ff|bubble|SCRUBBED!;SEWER SURGE|tsunami|#4aa3ff||FLUSHED!',
+pigeon:'BREADCRUMB RAIN|rain|#e6c27a|pit|CRUMBED!;WING DIVE|meteor|#9a7cff||DIVEBOMBED!;FEATHER SPIN|vortex|#c9b8ff||PLUCKED!;ROOFTOP DROP|suplex|#9a7cff||GRINDED!',
+frog:'TONGUE LASH|beam|#ff4fb8||LICKED!;LILY PAD SLAM|quake|#7dff5a||SPLASHED!;HOP SCOTCH|flurry|#7dff5a||HOPPED!;CROON STORM|rain|#ffd23d|note|SERENADED!',
+potato:'FRY BARRAGE|volley|#ffd23d|pit|FRIED!;MASH QUAKE|quake|#c98a4a||MASHED!;HOT POTATO|meteor|#ff7a1a||BAKED!;TATER TORNADO|rush|#c98a4a||SPUDDED!',
+cat:'FELINE FREEFALL|meteor|#ff8a3d||LANDED ON FEET!;HAIRBALL CANNON|volley|#c98a4a|bubble|HACKED!;POUNCE|teleport|#ff8a3d||POUNCED!;ZOOMIES|rush|#ffcc66||ZOOMED!',
+onion:'TEAR GAS|vortex|#e0b3ff||CRYING!;LAYER SLAM|quake|#c38bff||PEELED!;ONION RINGS|boomerang|#e6c27a|disc|RINGED!;SOB STORM|rain|#9fe6ff|bubble|DRENCHED!',
+hamster:'WHEEL OF DOOM|vortex|#ffcc66||DIZZY!;SEED STORM|rain|#e6c27a|pit|SEEDED!;CHEEK CANNON|volley|#ffcc66|pit|STUFFED!;CAGE MATCH|suplex|#ff8a3d||CAGED!',
+microwave:'POPCORN BARRAGE|volley|#fff6d6|popcorn|KERNELED!;RADIATION BEAM|beam|#9cff3d||NUKED!;DING SLAM|quake|#9cff3d||DING!;REHEAT RUSH|rush|#ff7a1a||REHEATED!',
+sock:'DRYER SPIN|aura|#ff8a96||TUMBLE DRY!;LINT STORM|rain|#ffd0e0|bubble|LINTED!;SOCK PUPPET|clone|#ff8a96||PUPPETED!;STATIC SHOCK|lightning|#7fe8ff||STATIC!',
+avocado:'GUAC TSUNAMI|tsunami|#7dff5a||GUACED!;TOAST TOPPER|meteor|#c98a4a||SMASHED!;RIPE BEAM|beam|#b6ff2e||RIPENED!;PIT BARRAGE|volley|#8a4a14|pit|PITTED!',
+cheese:'CHEESE WHEEL|rush|#ffd23d||ROLLED!;MELT BEAM|beam|#ffcc00||MELTED!;HOLEY SHOCKWAVE|shockwave|#ffd23d||HOLEY!;CRACKER RAIN|rain|#e6c27a|pit|CRACKED!',
+cone:'DETOUR DASH|rush|#ff7a1a||REROUTED!;SIREN BEAM|beam|#ff3b1a||WEE-OO!;CONE RAIN|rain|#ff7a1a|pit|CONED!;ROADBLOCK|haymaker|#ff7a1a||BLOCKED!',
+dino:'TAIL WHIP|rush|#7dff5a||WHIPPED!;FOSSIL QUAKE|shockwave|#c98a4a||FOSSILIZED!;ROAR BEAM|beam|#ff7a1a||ROARED!;ASTEROID RAIN|rain|#ff5a00|orb|EXTINCT!',
+jelly:'JIGGLE FLURRY|flurry|#ff4fb8||JIGGLED!;SUGAR RUSH|rush|#ff8a96||SUGARED!;GELATIN BEAM|beam|#ff4fb8||SET!;BOUNCE HOUSE|meteor|#ff8a96||BOUNCED!',
+sloth:'SLOW-MO SLAM|haymaker|#a3d977||EVENTUALLY!;LAZY BEAM|beam|#ffcc66||NAPPED!;NAP TIME|vortex|#c9b8ff||SNOOZED!;BRANCH SWING|suplex|#8a4a14||HUNG!',
+lamp:'LAVA BLOB RAIN|rain|#ff8a3d|orb|BLOBBED!;GROOVE SPIN|vortex|#ff3df2||GROOVED!;BULB BLAST|haymaker|#ffe066||ILLUMINATED!;DISCO FLASH|teleport|#ff3df2||FLASHED!',
+gnome:'CIRCUIT BREAKER|beam|#7fe8ff||SHORTED!;MUSHROOM RING|aura|#3dffd0||FAE-STRUCK!;BYTE FLURRY|flurry|#2ec5ff||HACKED!;GARDEN QUAKE|shockwave|#6ae04a||PLANTED!',
+nugget:'SAUCE FIRE|beam|#ff4a2a||SAUCED!;NUGGET RAIN|rain|#ffc400|pit|BATTERED!;DEEP FRY DIVE|meteor|#ffc400||DEEP FRIED!;FRY SWORD FLURRY|flurry|#ffd23d||FRIED!',
+croissant:'BUTTER TSUNAMI|tsunami|#ffe8a0||BUTTERED!;CANNON RAIN|rain|#2b2b3a|cannon|SHELLED!;ANCHOR DROP|meteor|#2b8fd9||ANCHORED!;PLANK WALK|suplex|#2b8fd9||OVERBOARD!',
+monk:'SPORE STORM|rain|#3dffd0|bubble|SPORED!;PALM STRIKE|haymaker|#ffe066||ZENNED!;STAFF SPIN|rush|#ff9a3d||SPUN!;MYCELIUM QUAKE|shockwave|#3dffd0||ROOTED!',
+goose:'GOOSE STAMPEDE|rush|#ffffff||TRAMPLED!;HELLFIRE HONK|beam|#ff2a2a||HONKED!;FEATHER STORM|rain|#fff|star|PLUCKED!;AXE DROP|meteor|#ff2a2a||CLEAVED!',
+vacuum:'DUST BUSTER BEAM|beam|#c070ff||DUSTED!;DEBRIS BARRAGE|volley|#8a7a99|pit|SPAT OUT!;HOSE GRAB|suplex|#c070ff||SUCKED UP!;TURBO DASH|rush|#c070ff||TURBOED!',
+snail:'COMET DIVE|meteor|#3a5cff||COMETED!;SLIME TRAIL|tsunami|#7dff5a||SLIMED!;SHELL SPIN|vortex|#3a5cff||SHELLED!;STAR SHOWER|rain|#ffe066|star|STARGAZED!',
+cloud:'HURRICANE|vortex|#7fd0ff||BLOWN AWAY!;HAILSTORM|rain|#bfe9ff|bubble|HAILED!;DOWNPOUR WAVE|tsunami|#4aa3ff||DRENCHED!;THUNDER PUNCH|haymaker|#ffe066||THUNDERED!',
+dragon:'SUSHI ROLL|rush|#ff7a1a||ROLLED!;GINGER STORM|rain|#ff8a96|disc|PICKLED!;SOY TSUNAMI|tsunami|#3b2410||DIPPED!;DRAGON DIVE|meteor|#9cff3d||DRAGONED!',
+hippo:'PHARAOH BEAM|beam|#c070ff||CURSED!;PYRAMID DROP|meteor|#e6c27a||ENTOMBED!;SAND VORTEX|vortex|#e6c27a||BURIED!;HIPPO SLAM|quake|#c070ff||SQUASHED!',
+phoenix:'SOLAR FLARE|beam|#fff2a8||SOLARIZED!;EMBER RAIN|rain|#ff5a00|orb|INCINERATED!;FIRE TORNADO|vortex|#ff5a00||SCORCHED!;BLAZE RUSH|rush|#ff7a1a||BLAZED!',
+unicorn:'RAINBOW BEAM|beam|#ff8af2||RAINBOWED!;HORN SKEWER|haymaker|#c9b8ff||IMPALED!;STARDUST RAIN|rain|#ffe066|star|STARDUSTED!;BLINK GALLOP|teleport|#ff8af2||MAGICKED!',
+shrimp:'MANTIS PUNCH|haymaker|#3dffd0||CAVITATED!;CORAL QUAKE|shockwave|#ff8a96||CORALLED!;BATTER BOOMERANG|boomerang|#ffc400|disc|BATTERED!;TIDE RUSH|tsunami|#2ec5ff||TIDED!',
+kraken:'ABYSS BEAM|beam|#2ec5ff||ABYSSED!;INK STORM|rain|#14002b|orb|INKED!;TENTACLE SUPLEX|suplex|#1abc9c||SQUEEZED!;WHIRLPOOL|vortex|#2ec5ff||DROWNED!',
+owl:'ARCANE BEAM|beam|#9a7cff||HOOTED!;CONSTELLATION|lightning|#c9b8ff||ASTRAL!;SPELLBOOK BARRAGE|volley|#9a7cff|orb|SPELLED!;MOONLIGHT BLINK|teleport|#bfe6ff||NIGHT NIGHT!',
+golem:'TROPHY TOSS|volley|#c0c0c0|cannon|AWARDED!;MEDAL RAIN|rain|#ffc400|disc|MEDALED!;PODIUM SLAM|meteor|#c98a4a||PODIUMED!;CHAMPION PUNCH|haymaker|#ff7a1a||CHAMPED!',
+duckgod:'BLACK HOLE|vortex|#6a3df0||SINGULARITY!;NEBULA RAIN|rain|#c38bff|star|COSMIC!;COMET QUACK|meteor|#3dffd0||IMPACT!;WARP STRIKE|teleport|#c38bff||WARPED!',
+angel:'SEVEN WINGS|flurry|#bfe6ff||HEAVENLY!;BREAD RAIN|rain|#e8b062|toast|BLESSED!;LIGHT PILLAR|lightning|#fff2a8||SMITTEN!;SERAPH DIVE|meteor|#bfe6ff||ASCENDED!',
+jester:'CARD STORM|rain|#ff3df2|disc|DEALT!;JACK IN THE BOX|haymaker|#c13bff||SURPRISE!;VOID BEAM|beam|#c13bff||VOIDED!;MASK SWAP|teleport|#ff3df2||WHO?!',
+corgi:'MISSILE RAIN|rain|#ff7a1a|cannon|BOMBARDED!;ZOOMIES DASH|rush|#ff9a3d||ZOOMED!;TAIL CANNON|beam|#2ec5ff||GOOD BOY!;MECH STOMP|quake|#ff7a1a||STOMPED!',
+boss:'BRAIN BLAST WAVE|shockwave|#ff3df2||MIND BLOWN!;PSYCHIC RAIN|rain|#c13bff|orb|BRAINWASHED!;TELEKINETIC SLAM|suplex|#ff3df2||LIFTED!;NEURON STORM|lightning|#ff3df2||NEURALIZED!'};
+const SPX={};for(const id in SPX_RAW)SPX[id]=SPX_RAW[id].split(';').map(r=>{const [name,type,col,proj,txt]=r.split('|');const o={name,type,col,txt:txt||undefined,desc:''};if(proj)o.proj=proj;if(type==='rain')o.n=9;if(type==='lightning')o.n=4;return o});
+function spList(id){const b=FIGHTERS[id].sp;return [b,...(SPX[id]||[])]}
+function mkFighter(id,donor,side,x,lv=1){const B=FIGHTERS[id],mu=lvMul(lv),F=Object.assign({},B,{hp:Math.round(B.hp*mu.hp),pow:+(B.pow*mu.pow).toFixed(3)}),stage=stageOfLv(lv),sk=skinKey(id,stage),skin=isLoaded(sk)?sk:id;return{id,lv,stage,skin,evoArt:skin!==id,vis:stage===3?1.1:stage===2?1.05:1,F,sp:donor?FIGHTERS[donor].sp:F.sp,spL:spList(donor||id),spLast:-1,donor,side,x,y:0,vx:0,vy:0,dir:side?-1:1,hp:F.hp,max:F.hp,ghost:F.hp,meter:0,st:'idle',t:0,mv:null,mvT:0,hit:new Set,buf:null,chg:0,charging:false,blkT:-9,hs:0,combo:0,comboT:0,sq:0,sqv:0,flash:0,airHits:0,wallB:false,bounced:false,inv:0,trail:[],trailT:0,ctl:newCtl(),ai:side?{next:0,blkUntil:0,hvyUntil:0,moveUntil:0,moveDir:0,reacted:false,reactAt:-1}:null,spS:{},armor:0,rot:0,ko:false,maxCombo:0,taken:0,sc:F.h/300}}
 const isAir=f=>f.y>.5||f.vy>0;
 function hurtBox(d){const s=d.sc;return d.st==='down'?{x0:d.x-70*s,x1:d.x+70*s,y0:d.y,y1:d.y+70}:{x0:d.x-50*s,x1:d.x+50*s,y0:d.y,y1:d.y+d.F.h*.86}}
 const overlap=(a,b)=>a.x0<b.x1&&a.x1>b.x0&&a.y0<b.y1&&a.y1>b.y0;
@@ -366,9 +414,9 @@ function updProjs(dt){for(const p of G.projs){p.life+=dt;p.cd=Math.max(0,p.cd-dt
  for(const a of G.projs)for(const b of G.projs)if(a!==b&&!a.dead&&!b.dead&&a.owner!==b.owner&&Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r){a.dead=b.dead=1;burst((a.x+b.x)/2,-(a.y+b.y)/2,20,['#fff','#ff3df2'],{spd:700,k:'spark',g:0});SFX.block()}
  G.projs=G.projs.filter(p=>!p.dead)}
 // ---------- SPECIALS ----------
-function startSpecial(f,o){f.meter=0;f.st='special';f.t=0;f.spS={};f.mv=null;f.rot=0;G.freeze=.65;G.superF=f;f.inv=.1;SFX.super();shake(.3);J.flash=.4;J.flashCol=f.F.col;if(f.sp.type==='quake')f.vy=900;const ss={flush:'flush',flurry:'coo',suplex:'grunt',clone:'meow',tsunami:'sob',lightning:'zap'}[f.sp.type]||(f.sp.stun?'croon':null);if(ss)setTimeout(()=>SFX[ss](),250);if(f.F.prem){setTimeout(()=>{SFX.choir();SFX.sparkle()},120);burst(f.x,-(f.y+f.F.h*.5),40,premCols(f.F.prem),{spd:900,g:0,k:'star',size:12})}}
+function startSpecial(f,o){if(f.spL&&f.spL.length>1){let i;do i=Math.floor(Math.random()*f.spL.length);while(i===f.spLast);f.spLast=i;f.sp=f.spL[i]}f.meter=0;f.st='special';f.t=0;f.spS={};f.mv=null;f.rot=0;G.freeze=.65;G.superF=f;f.inv=.1;SFX.super();shake(.3);J.flash=.4;J.flashCol=f.F.col;if(f.sp.type==='quake')f.vy=900;const ss={beam:'zap',meteor:'dash',rain:'sparkle',vortex:'flush',teleport:'dash',haymaker:'grunt',rush:'dash',shockwave:'heavy',boomerang:'whiff',quake:'grunt',volley:'whiff',aura:'sparkle',flush:'flush',flurry:'coo',suplex:'grunt',clone:'meow',tsunami:'sob',lightning:'zap'}[f.sp.type]||(f.sp.stun?'croon':null);if(ss)setTimeout(()=>SFX[ss](),250);if(f.F.prem){setTimeout(()=>{SFX.choir();SFX.sparkle()},120);burst(f.x,-(f.y+f.F.h*.5),40,premCols(f.F.prem),{spd:900,g:0,k:'star',size:12})}}
 function areaHit(f,o,key,box,h,interval){if(f.sp.txt&&h.txt)h.txt=f.sp.txt;const last=f.spS['h'+key];if(last!=null&&G.time-last<interval)return false;if(!overlap(box,hurtBox(o)))return false;f.spS['h'+key]=G.time;h.fromX=h.fromX!=null?h.fromX:f.x;return resolveHit(f,o,h)}
-function updSpecial(f,o,dt){const t=f.t,s=f.spS,A=f.F.pow,ty=f.sp.type;let end=1;
+function updSpecial(f,o,dt){const t=f.t,s=f.spS,A=f.F.pow,ty=f.sp.type;let end=1;{const au=AURA[f.id]||['#fff','circle',''],C=f.sp.col||au[0],big=f.stage>1?1+.35*(f.stage-1):1;if(Math.random()<dt*28*big)burst(f.x+rand(-60,60)*f.sc,-(f.y+rand(0,f.F.h)),1,[C,'#fff'],{spd:160*big,g:-300,k:au[1]==='g'?'g':'spark',gl:au[2],size:au[1]==='g'?16*big:7*big,life:.7})}
  if(XSP[ty])end=XSP[ty](f,o,dt,t,s);
  else if(ty==='rush'){end=.9;if(t<.62){f.vx=f.dir*1350;f.rot+=dt*30;if(areaHit(f,o,'r',fbox(f,-70,120,0,f.F.h/f.sc),{dmg:26,kx:300,ky:250,hs:.3,hstop:.04,shake:.15,sfx:'light'},.085))o.vx=f.vx*.95}else{f.vx*=.9;f.rot=0;if(!s.fin){s.fin=1;s.h0=G.time}areaHit(f,o,'rf',fbox(f,-40,190,0,300),{dmg:90,kx:500,ky:1350,launch:1,hs:.6,hstop:.18,shake:.6,sfx:'heavy',txt:'TORNADO!'},99)}}
  else if(ty==='quake'){end=1.05;if(!s.slam&&t>.12&&f.y<=0){s.slam=G.time;SFX.boom();shake(.9);ring(f.x,0,'#ffd23d',260,20)}if(s.slam)for(let i=0;i<3;i++){const gt=G.time-s.slam-i*.1;if(gt>0&&gt<.3){const gx=f.x+f.dir*(170+i*170);if(!s['g'+i]){s['g'+i]=1;burst(gx,0,26,['#6b3b1c','#c98a4a','#fff'],{ang:-Math.PI/2,spread:.4,spd:1300,size:14});SFX.heavy()}areaHit(f,o,'g'+i,{x0:gx-80,x1:gx+80,y0:0,y1:340},{dmg:80,kx:150,ky:1350,launch:1,hs:.6,hstop:.12,shake:.5,sfx:'heavy',txt:'ERUPTION!',fromX:f.x},99)}}}
@@ -606,6 +654,16 @@ function drawFighter(c,f){const pose=poseOf(f),T=G.time;if(f.F.prem&&!f.ko)drawP
  if(f.st==='air'){sy*=1+clamp(f.vy/4000,-.08,.12);rot=-f.dir*clamp(f.vy/5000,-.15,.15)}
  if(f.st==='launched')rot=-f.dir*clamp(.4+f.t*3,0,1.1)*(f.ko?1.4:1)+(f.ko?f.t*-f.dir*6:0);
  if(f.st==='hitstun')rot=-f.dir*.12;
+ if(f.st==='special'){const t=f.t,ty=f.sp.type,k=f.stage>2?1.12:f.stage>1?1.06:1;sx*=k;sy*=k;
+  if(ty==='haymaker'){if(t<.4){const w=t/.4;sx*=1+.12*w;sy*=1-.06*w;rot=f.dir*.25*w;x+=rand(-5,5)}else if(t<.66){rot=-f.dir*.3;sx*=1.18;sy*=.9}}
+  else if(ty==='beam'){if(t<.3){rot=f.dir*.2*(t/.3);sy*=1+.06*Math.sin(t*60)}else if(t<1.05){rot=-f.dir*.12;x+=rand(-3,3);x-=f.dir*8}}
+  else if(ty==='teleport'||ty==='flurry'){if(Math.sin(G.time*70)>.3)sx*=.6+Math.random()*.2}
+  else if(ty==='meteor'){if(f.vy<0){sy*=1.25;sx*=.8;rot=f.dir*.6}else if(f.vy>0){rot+=G.time*14*f.dir}}
+  else if(ty==='rain'||ty==='lightning'){if(t<.3){y+=Math.min(1,t/.3)*60;sy*=1.08;rot=-f.dir*.1}else y+=60+Math.sin(G.time*8)*10}
+  else if(ty==='volley'||ty==='boomerang'){sx*=1+.08*Math.sin(f.t*55);rot=-f.dir*.08*Math.sin(f.t*55)}
+  else if(ty==='quake'||ty==='shockwave'){if(f.y<=1&&t<.5){sy*=.82;sx*=1.18}}
+  else if(ty==='vortex'||ty==='aura'){sx*=Math.cos(G.time*20)}
+  else if(ty==='tsunami'){rot=-f.dir*.15;y+=Math.abs(Math.sin(G.time*10))*30}}
  if(f.charging)x+=rand(-4,4);
  if(G.phase==='ko'&&f.side===G.winner&&G.koT>.9&&!f.ko){y+=Math.abs(Math.sin(T*8))*24}
  const P2=(G.phase==='ko'&&f.side===G.winner&&G.koT>.9)?'attack':pose;
