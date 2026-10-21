@@ -38,6 +38,8 @@ h2{margin:14px 0 6px;font-size:18px;color:#b6ff2e;text-shadow:2px 2px 0 #000}
 .rung.lock .pic img{filter:brightness(0) opacity(.7)}
 .rung.done::after{content:"KO";position:absolute;top:2px;right:2px;background:#b6ff2e;color:#000;font-size:10px;padding:1px 4px;border-radius:5px;border:2px solid #000}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+#grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
+@media(max-width:520px){#grid{grid-template-columns:repeat(5,1fr);gap:5px}#grid .fc{padding:3px 2px 4px;border-radius:10px;border-width:2px}#grid .fc .nm{font-size:7.5px;min-height:17px}#grid .fc .tag{font-size:6px;padding:1px 3px}}
 .fc{position:relative;background:linear-gradient(#3b1474,#22073f);border:3px solid #000;border-radius:16px;padding:6px 4px 6px;text-align:center;box-shadow:0 4px 0 #000;cursor:pointer}
 .fc img{width:100%;aspect-ratio:1;object-fit:contain;display:block;pointer-events:none}
 .fc .nm{font-size:11px;font-family:system-ui;font-weight:900;line-height:1.1;min-height:24px}
