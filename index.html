@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#14002b">
 <title>Brainrot Battle - absurd creature brawler</title>
-<meta name="description" content="A real-time 1v1 brawler starring a shark in sneakers, a buff cappuccino and a CEO duck. Combos, juggles, parries, specials.">
+<meta name="description" content="A real-time 1v1 brawler with 44 absurd fighters: a shark in sneakers, a buff cappuccino, a CEO duck and more. Combos, juggles, parries, specials, gauntlet mode.">
 <link rel="preload" href="assets/arena.webp" as="image">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
@@ -81,7 +81,90 @@ h2{margin:14px 0 6px;font-size:18px;color:#b6ff2e;text-shadow:2px 2px 0 #000}
 #bU{right:calc(118px + env(safe-area-inset-right));bottom:calc(104px + env(safe-area-inset-bottom));width:66px;height:66px;background:#555;color:#aaa;font-size:11px}
 #bU.ready{background:radial-gradient(circle,#fff36b,#ff3df2);color:#000;animation:throb .4s infinite alternate}
 @keyframes throb{to{transform:scale(1.12) rotate(5deg)}}
-#pauseBtn{position:fixed;z-index:6;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top));font:inherit;font-size:11px;padding:4px 10px;border-radius:10px;border:2px solid #000;background:#0008;color:#fff;display:none}
+#pauseBtn{position:fixed;z-index:6;left:50%;transform:translateX(-50%);top:calc(78px + env(safe-area-inset-top));font:inherit;font-size:11px;padding:4px 10px;border-radius:10px;border:2px solid #000;background:#0008;color:#fff;display:none}
+/* ---- select tabs / scroll ---- */
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;font:inherit;font-size:13px;padding:7px 12px;border-radius:99px;border:3px solid #000;background:#2a0a52;color:#fff;box-shadow:0 3px 0 #000;cursor:pointer}
+.tab b{background:#0008;border-radius:8px;padding:0 5px;font-size:11px;margin-left:2px}
+.tab.on{background:#b6ff2e;color:#000}.tab.on b{background:#0002}
+.tab.t-epic.on{background:linear-gradient(90deg,#2ec5ff,#b44dff);color:#fff}.tab.t-legendary.on{background:linear-gradient(90deg,#ffd23d,#ff9d00)}.tab.t-mythic.on{background:linear-gradient(90deg,#ff3df2,#2ec5ff,#b6ff2e)}
+#grid{max-height:min(54vh,600px);overflow-y:auto;overscroll-behavior:contain;padding:5px;border-radius:16px;background:#0004;scrollbar-width:thin}
+#donors{max-height:300px;overflow-y:auto;overscroll-behavior:contain;padding:4px}
+.fc .lk{position:absolute;right:4px;top:4px;font-size:8px;background:#000c;color:#ffd23d;padding:1px 4px;border-radius:5px}
+.fc.prem{border-color:transparent;background:linear-gradient(#2a0a52,#14002b) padding-box,conic-gradient(from var(--a),var(--c1),var(--c2),var(--c3),var(--c1)) border-box;animation:spin 4s linear infinite}
+.fc.prem.lock img{filter:drop-shadow(0 0 6px var(--c1)) saturate(1.2)}
+.fc.prem .tag{background:linear-gradient(90deg,var(--c1),var(--c2));color:#000;font-weight:900}
+.fc.prem.lock .nm{color:var(--c1)}
+.fc.sel.prem{box-shadow:0 0 0 3px #b6ff2e,0 0 18px var(--c1),0 4px 0 #000}
+.info.prem{border-color:var(--c1);box-shadow:0 0 22px var(--c1)}
+.info .desc{color:#fff!important;font-weight:700!important}
+@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes spin{to{--a:360deg}}
+.t-epic{--c1:#2ec5ff;--c2:#b44dff;--c3:#7fe8ff}
+.t-legendary{--c1:#ffd23d;--c2:#ff9d00;--c3:#fff6a8}
+.t-mythic{--c1:#ff3df2;--c2:#2ec5ff;--c3:#b6ff2e}
+.t-boss{--c1:#c13bff;--c2:#ff3d3d;--c3:#ff3df2}
+.chip{display:inline-block;font-size:10px;padding:2px 7px;border-radius:7px;border:2px solid #000;color:#000;background:linear-gradient(90deg,var(--c1),var(--c2));margin-right:4px;vertical-align:middle;letter-spacing:.5px}
+.chip.t-mythic{animation:hue 3s linear infinite}
+@keyframes hue{to{filter:hue-rotate(360deg)}}
+/* ---- home banner ---- */
+.banner{position:relative;margin:12px 0;border-radius:20px;padding:3px;cursor:pointer;background:conic-gradient(from var(--a),#ffd23d,#ff3df2,#2ec5ff,#b6ff2e,#ffd23d);animation:spin 3s linear infinite;box-shadow:0 5px 0 #000}
+.banner .bin{display:flex;align-items:center;gap:8px;background:linear-gradient(120deg,#2a0a52,#14002b);border-radius:17px;padding:8px 12px;overflow:hidden;position:relative}
+.banner .bt{flex:1;line-height:1}.banner .bt b{display:block;font-size:clamp(18px,5vw,26px);color:#ffd23d;text-shadow:2px 2px 0 #000}.banner .bt span{font-family:system-ui;font-weight:800;font-size:12px;color:#e8dcff}
+#bannerImgs{display:flex;height:84px}#bannerImgs img{height:100%;margin-left:-18px;filter:drop-shadow(0 0 8px #ffd23d)}
+.banner .go{background:#ffd23d;color:#000;border:3px solid #000;border-radius:12px;padding:6px 10px;font-size:14px;box-shadow:0 3px 0 #000}
+.shine{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 35%,#fff4 48%,#fff8 50%,#fff4 52%,transparent 65%);background-size:250% 100%;animation:shine 3.2s ease-in-out infinite;border-radius:inherit;z-index:3}
+@keyframes shine{0%{background-position:130% 0}60%,100%{background-position:-130% 0}}
+/* ---- shop ---- */
+#shop{background:radial-gradient(circle at 20% 0,#7a1fd6 0,transparent 45%),radial-gradient(circle at 90% 30%,#b8860b 0,transparent 40%),radial-gradient(circle at 50% 100%,#0b6bd6 0,transparent 50%),#120026f5}
+.shoph{text-align:center;margin:6px 0 2px;line-height:.9}.shoph b{font-size:clamp(34px,10vw,64px);background:linear-gradient(90deg,#ffd23d,#fff6a8,#ff9d00,#ffd23d);background-size:200%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:gold 3s linear infinite;filter:drop-shadow(3px 3px 0 #000)}
+@keyframes gold{to{background-position:200% 0}}
+.shoph small{display:block;font-family:system-ui;font-weight:800;font-size:13px;color:#e8dcff;margin-top:6px}
+.testbar{font-family:system-ui;font-weight:900;font-size:11px;text-align:center;background:#ffd23d;color:#000;border:2px solid #000;border-radius:10px;padding:4px 8px;margin:8px auto;max-width:520px}
+.bundles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+.bundle{position:relative;border-radius:20px;padding:12px;border:3px solid #000;box-shadow:0 5px 0 #000;overflow:hidden;background:linear-gradient(135deg,#3b1474,#1b0533)}
+.bundle.bundle_all20{background:linear-gradient(135deg,#6a2cff,#ff3df2 60%,#ffd23d);}
+.bundle.bundle_starter5{background:linear-gradient(135deg,#0b6bd6,#2ec5ff 60%,#b6ff2e)}
+.btag{position:absolute;top:8px;right:-30px;transform:rotate(35deg);background:#ffd23d;color:#000;font-size:11px;padding:3px 34px;border:2px solid #000;z-index:4}
+.bimgs{display:flex;align-items:flex-end;height:96px;padding-left:16px}.bimgs img{height:100%;margin-left:-16px;filter:drop-shadow(0 4px 0 #0006)}
+.bimgs .more{align-self:center;margin-left:6px;background:#000a;border-radius:10px;padding:4px 8px;font-size:14px}
+.binfo{position:relative;z-index:4}.bname{font-size:20px;text-shadow:2px 2px 0 #000;margin-top:6px}.bsub{font-family:system-ui;font-weight:800;font-size:12px;margin:3px 0 8px}.bsub b{color:#fff36b}
+.binfo .btn{width:100%;font-size:17px;padding:9px}
+.shopgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:14px;margin-top:8px}
+.pcard{position:relative;border-radius:22px;padding:3px;background:conic-gradient(from var(--a),var(--c1),var(--c2),var(--c3),var(--c1));animation:spin 4s linear infinite;box-shadow:0 0 18px color-mix(in srgb,var(--c1) 55%,transparent),0 6px 0 #000}
+.pcard.t-mythic{animation:spin 2.5s linear infinite,hue 6s linear infinite}
+.pcard .pin{position:relative;background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--c1) 30%,#2a0a52),#14002b 70%);border-radius:19px;padding:10px;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.pcard.focus{animation:spin 1s linear infinite,pop .5s 3 alternate}
+@keyframes pop{to{transform:scale(1.04)}}
+.ptop{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:4}
+.pprice{font-size:18px;color:#fff;text-shadow:2px 2px 0 #000}.ownd{font-size:12px;background:#b6ff2e;color:#000;border:2px solid #000;border-radius:8px;padding:1px 6px}
+.pprev{position:relative;height:170px;display:flex;align-items:flex-end;justify-content:center;margin:4px 0}
+.pprev img{height:100%;max-width:100%;object-fit:contain;position:relative;z-index:2;animation:bob 1.8s ease-in-out infinite;filter:drop-shadow(0 6px 0 #0008)}
+.pcard:nth-child(3n+1) .pprev img{animation-delay:-.6s}.pcard:nth-child(3n+2) .pprev img{animation-delay:-1.2s}
+@keyframes bob{50%{transform:translateY(-9px) scale(1.03)}}
+.aura{position:absolute;left:12%;right:12%;top:6%;bottom:0;border-radius:50%;background:radial-gradient(ellipse,var(--c1) 0,color-mix(in srgb,var(--c2) 50%,transparent) 40%,transparent 70%);opacity:.75;filter:blur(8px);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.4;transform:scale(1.12)}}
+.pprev i{position:absolute;z-index:3;width:12px;height:12px;background:var(--c3);clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);animation:twk 1.6s ease-in-out infinite}
+.pprev .sp1{left:14%;top:20%}.pprev .sp2{right:16%;top:40%;animation-delay:-.5s;width:16px;height:16px}.pprev .sp3{left:30%;bottom:12%;animation-delay:-1s}
+@keyframes twk{0%,100%{transform:scale(0) rotate(0);opacity:0}50%{transform:scale(1) rotate(90deg);opacity:1}}
+.pname{font-size:18px;line-height:1;text-shadow:2px 2px 0 #000;position:relative;z-index:4}
+.ptitle{font-family:system-ui;font-weight:800;font-size:11px;color:#d9c6ff;margin:2px 0 4px}
+.pstats .stat{margin:2px 0}.pstats .stat div i{background:linear-gradient(90deg,var(--c1),var(--c2))}
+.psp{font-family:system-ui;font-size:11px;font-weight:700;color:#e8dcff;background:#0006;border-radius:10px;padding:6px 8px;margin:6px 0 4px;flex:1}.psp b{display:block;color:var(--c1);font-family:"Arial Black",Impact,sans-serif;font-size:13px;margin-bottom:2px}
+.pfx{font-family:system-ui;font-size:10px;font-weight:800;color:var(--c3);margin-bottom:6px}
+.prow{display:flex;gap:6px}.prow .btn{flex:1;font-size:14px;padding:9px 6px}.prow .btn.grey{flex:.7}
+.pcard.own .pin{background:radial-gradient(circle at 50% 30%,#1f6b2a,#14002b 70%)}
+/* modals */
+.cthumbs{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin:6px 0}.cthumbs img{height:70px}.cthumbs.big img{height:80px}.cthumbs .more{align-self:center;font-size:16px}
+.bigprice{font-size:42px!important;font-family:"Arial Black",Impact,sans-serif!important;color:#ffd23d!important;text-shadow:3px 3px 0 #000;margin:2px 0!important}
+.testnote{font-size:12px!important;color:#ffd23d!important}
+#modal .box.buybox{outline-color:#ffd23d}
+#modal .box.celebox{outline-color:#b6ff2e;position:relative;overflow:hidden}
+.celeb{position:relative;height:190px;display:flex;justify-content:center;align-items:flex-end}.celeb img{height:100%;position:relative;z-index:2;animation:bob 1.6s ease-in-out infinite}
+h1.yay{font-size:44px!important;animation:boing .6s cubic-bezier(.2,1.8,.4,1)}
+.confetti{position:absolute;inset:0;pointer-events:none;z-index:5}.confetti i{position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;animation:fall 2s ease-in forwards}
+@keyframes fall{to{transform:translateY(560px) rotate(720deg);opacity:0}}
+@media(max-width:520px){.bundles{grid-template-columns:1fr}.shopgrid{grid-template-columns:repeat(2,1fr);gap:9px}.pcard .pin{padding:7px}.pprev{height:118px}.pname{font-size:14px}.psp{font-size:10px;padding:5px}.psp b{font-size:11px}.pfx{display:none}.prow{flex-direction:column;gap:5px}.prow .btn{font-size:12px;padding:7px 4px}.pstats .stat{font-size:9px}.pstats .stat span{width:36px}.bimgs{height:76px}#bannerImgs{height:64px}}
 </style><style>button,a,.scr *{touch-action:manipulation}*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}input,textarea{-webkit-user-select:text;user-select:text}</style>
 <script>(function(){var last=0;document.addEventListener('touchend',function(e){var n=Date.now();if(e.cancelable&&n-last<350&&!(e.target.closest&&e.target.closest('input,textarea'))){e.preventDefault();}last=n;},{passive:false});['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();},{passive:false});});document.addEventListener('dblclick',function(e){e.preventDefault();},{passive:false});document.addEventListener('touchmove',function(e){if(e.cancelable&&e.touches&&e.touches.length>1)e.preventDefault();},{passive:false});})();</script>
 </head><body>
@@ -95,10 +178,12 @@ h2{margin:14px 0 6px;font-size:18px;color:#b6ff2e;text-shadow:2px 2px 0 #000}
  <div class="logo"><b>BRAINROT</b><i>BATTLE</i></div>
  <div class="hero" id="hero"></div>
  <button class="btn big pink" id="playBtn">FIGHT!</button>
+ <div class="row"><button class="btn blue" id="gauntletHome">GAUNTLET<br><small id="gBest" style="font-size:10px;font-family:system-ui"></small></button></div>
+ <div class="banner" id="shopBanner"><div class="bin"><div class="shine"></div><div class="bt"><b>20 PREMIUM FIGHTERS</b><span>Epic, Legendary &amp; Mythic. Auras, sky-drop intros, custom KOs.</span></div><div id="bannerImgs"></div><span class="go">SHOP</span></div></div>
  <h2>THE LADDER <span id="ladderTxt" style="color:#fff;font-size:13px"></span></h2>
  <div class="ladder" id="ladder"></div>
  <div class="keys" id="keysHelp"><b>A</b><b>D</b> move &nbsp; <b>W</b>/<b>Space</b> jump &nbsp; double-tap = dash<br><b>J</b> punch (x3 combo) &nbsp; <b>K</b> heavy (hold = charge, launches) &nbsp; <b>L</b> block (tap at the last moment = PARRY) &nbsp; <b>U</b> special<br>Air: <b>J</b> air kick, <b>K</b> meteor spike. Juggle them, bounce them off walls.</div>
- <div class="row"><button class="btn blue" id="shareHome">SHARE</button><button class="btn gold" id="shopBtn">PREMIUM</button></div>
+ <div class="row"><button class="btn blue" id="shareHome">SHARE</button><button class="btn gold" id="shopBtn">SHOP</button></div>
 </div></section>
 
 <section class="scr" id="select"><div class="wrap">
@@ -106,10 +191,22 @@ h2{margin:14px 0 6px;font-size:18px;color:#b6ff2e;text-shadow:2px 2px 0 #000}
  <h2>CHOOSE YOUR FIGHTER</h2>
  <div class="info" id="info"></div>
  <button class="btn big" id="goBtn">FIGHT</button>
- <div class="grid" id="grid" style="margin-top:12px"></div>
+ <div class="row"><button class="btn blue" id="gauntletBtn">GAUNTLET (random foes)</button><button class="btn gold" id="shopSel">PREMIUM SHOP</button></div>
+ <div class="tabs" id="tabs" style="margin-top:12px"></div>
+ <div class="grid" id="grid"></div>
  <h2>FUSION LAB <small style="color:#fff;font-size:11px;font-family:system-ui">(give your fighter another fighter's SPECIAL)</small></h2>
  <div class="hint" id="fuseHint"></div>
  <div class="grid" id="donors"></div>
+</div></section>
+
+<section class="scr" id="shop"><div class="wrap">
+ <div class="bar"><button class="btn grey" id="shopBack" style="font-size:13px;padding:6px 12px">BACK</button><div class="pill"><span class="coin"></span><span class="coins">0</span></div><button class="btn grey" id="restoreBtn" style="font-size:11px;padding:6px 8px">RESTORE PURCHASES</button></div>
+ <div class="shoph"><b>PREMIUM SHOP</b><small id="shopOwned"></small></div>
+ <div class="testbar">TEST STORE: purchases are simulated, no real money is charged.</div>
+ <div class="bundles" id="shopBundles"></div>
+ <div class="tabs" id="tierChips"></div>
+ <div class="shopgrid" id="shopGrid"></div>
+ <p class="hint" style="text-align:center;margin-top:16px">Premium fighters are cosmetic flex: same power range as everyone else, way more drip.</p>
 </div></section>
 
 <div id="modal"><div class="box" id="mbox"></div></div>
