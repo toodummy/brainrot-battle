@@ -62,13 +62,15 @@ const UNLOCK_COST=250;
 
 // ---------- PREMIUM CATALOG ----------
 // Cosmetic-premium: premium fighters get flashier FX (aura, intro, KO, SFX) but stats are in the same range as regulars.
-const TIERS={epic:{label:'EPIC',price:.99},legendary:{label:'LEGENDARY',price:1.99},mythic:{label:'MYTHIC',price:2.99}};
+// Coin store: on itch.io (or with ?coins) premium fighters cost in-game coins instead of money
+const COIN_STORE=/(^|\.)itch\.(zone|io)$/.test(location.hostname)||/[?&]coins\b/.test(location.search);
+const TIERS={epic:{label:'EPIC',price:COIN_STORE?600:.99},legendary:{label:'LEGENDARY',price:COIN_STORE?1000:1.99},mythic:{label:'MYTHIC',price:COIN_STORE?1500:2.99}};
 const PREM_IDS=IDS.filter(i=>FIGHTERS[i].prem);
 const CATALOG={};
 PREM_IDS.forEach(id=>{const t=FIGHTERS[id].prem;CATALOG['fighter_'+id]={id:'fighter_'+id,kind:'fighter',title:FIGHTERS[id].name,tier:t,price:TIERS[t].price,currency:'USD',grants:[id]}});
-CATALOG.premium_omega_brainrot={id:'premium_omega_brainrot',kind:'fighter',title:'The Omega Brainrot',tier:'boss',price:1.99,currency:'USD',grants:['boss']};
-CATALOG.bundle_all20={id:'bundle_all20',kind:'bundle',title:'Premium Pack: all 20',price:9.99,currency:'USD',grants:[...PREM_IDS]};
-CATALOG.bundle_starter5={id:'bundle_starter5',kind:'bundle',title:'Starter 5-pack',price:3.99,currency:'USD',grants:['gnome','goose','dragon','unicorn','corgi']};
+CATALOG.premium_omega_brainrot={id:'premium_omega_brainrot',kind:'fighter',title:'The Omega Brainrot',tier:'boss',price:COIN_STORE?1200:1.99,currency:'USD',grants:['boss']};
+CATALOG.bundle_all20={id:'bundle_all20',kind:'bundle',title:'Premium Pack: all 20',price:COIN_STORE?15000:9.99,currency:'USD',grants:[...PREM_IDS]};
+CATALOG.bundle_starter5={id:'bundle_starter5',kind:'bundle',title:'Starter 5-pack',price:COIN_STORE?2500:3.99,currency:'USD',grants:['gnome','goose','dragon','unicorn','corgi']};
 const productFor=id=>id==='boss'?'premium_omega_brainrot':'fighter_'+id;
 
 // ---------- ASSETS (lazy: sprites load per fighter, on demand) ----------
@@ -120,7 +122,6 @@ const SFX={
  evoBoom(){noise(.9,1,1000,0,'lowpass',1,60);tone('sine',70,25,.9,1);setTimeout(()=>{SFX.fanfare();SFX.choir()},250)},
  womp(){const t=T();[294,277,262,233].forEach((f,i)=>tone('sawtooth',f,i==3?180:f*.97,i==3?.8:.32,.2,t+i*.34,900))},
 };
-function say(txt){if(S.muted||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.pitch=.6;u.rate=1.05;speechSynthesis.speak(u)}catch(e){}}
 const MUS={on:false};
 function musicStart(){audio();if(!AC)return;MUS.on=true;MUS.n=0;MUS.t0=AC.currentTime+.1;MUS.spb=60/128;MUS.root=pick([55,58.3,49])}
 function musicStop(){MUS.on=false}
@@ -181,7 +182,7 @@ function xpLines(won,extra){return extra}
 
 // ---------- STUBS ----------
 // Replace with CrazyGames/Poki rewarded ad. onDone only fires if the ad completed.
-function showAd(onDone){const o=$('#adOverlay');let n=DEBUG?1:3;o.style.display='flex';$('#adCount').textContent=n;const iv=setInterval(()=>{n--;$('#adCount').textContent=n;if(n<=0){clearInterval(iv);o.style.display='none';onDone&&onDone()}},DEBUG?120:1000)}
+function showAd(onDone){if(COIN_STORE){onDone&&onDone();return}const o=$('#adOverlay');let n=DEBUG?1:3;o.style.display='flex';$('#adCount').textContent=n;const iv=setInterval(()=>{n--;$('#adCount').textContent=n;if(n<=0){clearInterval(iv);o.style.display='none';onDone&&onDone()}},DEBUG?120:1000)}
 
 // ====================== PAYMENTS: TEST STUB (NO REAL CHARGES) ======================
 // purchase(productId) is the ONLY function that talks to a payment provider. Product ids/prices live in CATALOG.
@@ -189,10 +190,11 @@ function showAd(onDone){const o=$('#adOverlay');let n=DEBUG?1:3;o.style.display=
 // mode 'stripe': redirects to the Stripe Payment Link in stripeLinks[productId] (client_reference_id = productId).
 //   For production, grant fighters only after your server confirms payment (Stripe webhook or Checkout Session
 //   lookup on the success_url), and make restorePurchases() ask that server instead of localStorage.
-const PAYMENTS={mode:'test',stripeLinks:{/* fighter_dragon:'https://buy.stripe.com/...', bundle_all20:'https://buy.stripe.com/...' */}};
+const PAYMENTS={mode:COIN_STORE?'coins':'test',stripeLinks:{/* fighter_dragon:'https://buy.stripe.com/...', bundle_all20:'https://buy.stripe.com/...' */}};
 const RECEIPT_KEY='brainrot_receipts';
 function receipts(){try{return JSON.parse(localStorage.getItem(RECEIPT_KEY))||[]}catch(e){return[]}}
 async function purchase(productId){const P=CATALOG[productId];if(!P)return{ok:false,error:'Unknown product'};
+ if(PAYMENTS.mode==='coins'){if(S.coins<P.price)return{ok:false,error:`Need ${P.price} coins. Win fights!`};S.coins-=P.price;save();setCoins();return{ok:true}}
  if(PAYMENTS.mode==='stripe'){const link=PAYMENTS.stripeLinks[productId];if(!link)return{ok:false,error:'Store not connected yet'};location.href=link+(link.includes('?')?'&':'?')+'client_reference_id='+encodeURIComponent(productId);return{ok:false,pending:true}}
  await new Promise(r=>setTimeout(r,DEBUG?150:900)); // TEST MODE: fake network delay, always succeeds
  const receipt={id:'test_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),productId,price:P.price,currency:P.currency,test:true,at:new Date().toISOString()};
@@ -207,7 +209,7 @@ function closeModal(){$('#modal').style.display='none'}
 function setCoins(){$$('.coins').forEach(e=>e.textContent=S.coins)}
 function screen(id){$$('.scr').forEach(s=>s.classList.toggle('on',s.id===id));if(id==='home')renderHome();if(id==='select')renderSelect();if(id==='shop')renderShop()}
 const fname=(body,donor)=>donor&&donor!==body?FIGHTERS[body].pre+FIGHTERS[donor].suf:FIGHTERS[body].name;
-const fmt=p=>'$'+p.toFixed(2);
+const fmt=p=>COIN_STORE?p+' COINS':'$'+p.toFixed(2);
 const tierOf=id=>FIGHTERS[id].prem||(id==='boss'?'boss':null);
 const TLABEL=t=>t==='boss'?'BOSS':TIERS[t].label;
 const pimg=(id,cls='')=>`<img loading="lazy" class="${cls}" src="${imgSrc(id)}" alt="${FIGHTERS[id].name}">`;
@@ -250,7 +252,7 @@ function bundleCard(pid,label){const P=CATALOG[pid],all=P.grants.every(owned),wo
  <button class="btn ${all?'':'gold'}" ${all?'disabled':''} data-buy="${pid}">${all?'OWNED':'BUY '+fmt(P.price)}</button></div></div>`}
 function renderShop(){setCoins();const f=S.shopTier||'all',ids=[...PREM_IDS,'boss'].filter(id=>f==='all'||tierOf(id)===f);
  $('#shopBundles').innerHTML=bundleCard('bundle_all20','BEST VALUE')+bundleCard('bundle_starter5','STARTER');
- $('#tierChips').innerHTML=[['all','ALL'],['epic','EPIC $0.99'],['legendary','LEGENDARY $1.99'],['mythic','MYTHIC $2.99']].map(([k,l])=>`<button class="tab ${f===k?'on':''} ${k!=='all'?'t-'+k:''}" data-tier="${k}">${l}</button>`).join('');
+ $('#tierChips').innerHTML=[['all','ALL'],['epic','EPIC '+fmt(TIERS.epic.price)],['legendary','LEGENDARY '+fmt(TIERS.legendary.price)],['mythic','MYTHIC '+fmt(TIERS.mythic.price)]].map(([k,l])=>`<button class="tab ${f===k?'on':''} ${k!=='all'?'t-'+k:''}" data-tier="${k}">${l}</button>`).join('');
  $('#shopGrid').innerHTML=ids.map(shopCard).join('');
  $('#shopOwned').textContent=`${PREM_IDS.filter(owned).length}/${PREM_IDS.length} premium owned`}
 function openShop(focus){audio();closeModal();S.shopTier='all';screen('shop');if(focus){const el=$('#pc-'+focus);if(el){el.scrollIntoView({block:'center'});el.classList.add('focus');setTimeout(()=>el.classList.remove('focus'),2200)}}else $('#shop').scrollTop=0}
@@ -271,6 +273,7 @@ $('#shop').addEventListener('click',e=>{const b=e.target.closest('[data-buy],[da
  else if(b.dataset.play){SFX.click();S.pick=b.dataset.play;S.donor=null;save();screen('select')}
  else if(b.dataset.tier){SFX.click();S.shopTier=b.dataset.tier;renderShop()}});
 $('#restoreBtn').onclick=()=>{audio();restorePurchases()};
+if(COIN_STORE)$$('.testbar,#restoreBtn').forEach(e=>e.style.display='none');
 $('#shopBack').onclick=()=>{SFX.click();screen('home')};
 $('#playBtn').onclick=()=>{audio();SFX.click();screen('select')};
 $('#backBtn').onclick=()=>{SFX.click();screen('home')};
@@ -547,11 +550,11 @@ async function startMatch(rung,cont,opts={}){audio();closeModal();const tok=++MA
  if(tok!==MATCH_TOKEN)return;$('#toast').style.display='none';closeModal();$('#modal').dataset.lock='';$$('.scr').forEach(s=>s.classList.remove('on'));
  const diff=kind==='ladder'?DIFF[rung]:kind==='trial'?.3:Math.min(.92,.3+S.gStreak*.06);
  G={rung,kind,me,donor,opp,diff,need:kind==='trial'?1:2,round:cont?3:1,wins:cont?[1,1]:[0,0],time:0,cam:{x:800,w:1100},projs:[],freeze:0,mode:'fight',stats:{best:0,flawless:false},aiOff:false,myLv,oppLv};
- startRound();musicStart();$('#pad').classList.toggle('on',isTouch);$('#pauseBtn').style.display='block'}
+ startRound();musicStart();$('#pad').classList.add('on');$('#pad').classList.toggle('kb',!isTouch);$('#pauseBtn').style.display='block'}
 function startRound(){G.p1=mkFighter(G.me,G.donor,0,580,G.myLv);G.p2=mkFighter(G.opp,null,1,1020,G.oppLv);
  if(G.round===1)for(const f of [G.p1,G.p2])if(f.F.prem){f.y=1150;f.vy=0;f.st='air';f.introDrop=1}G.timer=60;G.phase='intro';G.pt=0;G.s1=G.s2=G.s3=0;G.bubs=[];G.projs=[];G.fin=G.finQ=null;G.freeze=0;G.superF=null;J.parts=[];J.texts=[];J.slow=1;J.slowT=0;clearEdges(PEND)}
 function roundKO(a,d){if(G.phase!=='fight')return;d.ko=true;G.phase='ko';G.koT=0;G.winner=a.side;G.wins[a.side]++;d.st='launched';d.mv=null;d.vy=Math.max(d.vy,950);d.vx=sgn(d.x-a.x)*750;d.wallB=false;d.bounced=false;
- slowmo(.22,1.3);hitstop(.28);shake(1.3);J.flash=.9;J.flashCol='#fff';SFX.boom();popText(W/2,H*.36,'K.O.!',a.side?'#ff3d3d':'#b6ff2e',fitSize(X,'K.O.!',130,W*.8),{hud:1,life:2.2,vy:0,rot:-.06});say('K. O.');
+ slowmo(.22,1.3);hitstop(.28);shake(1.3);J.flash=.9;J.flashCol='#fff';SFX.boom();popText(W/2,H*.36,'K.O.!',a.side?'#ff3d3d':'#b6ff2e',fitSize(X,'K.O.!',130,W*.8),{hud:1,life:2.2,vy:0,rot:-.06});
  burst(d.x,-(d.y+d.F.h*.5),50,['#ffd23d'],{k:'coin',spd:900,up:600,size:12});burst(d.x,-(d.y+d.F.h*.5),60,['#ff3df2','#b6ff2e','#2ec5ff','#fff'],{spd:1200,up:300,k:'star'});if(a.F.prem)premKO(a,d);
  if(a.side===0){G.stats.best=Math.max(G.stats.best,a.maxCombo);if(a.taken===0){G.stats.flawless=true;setTimeout(()=>G&&popText(W/2,H*.5,'FLAWLESS!','#ffd23d',48,{hud:1,life:1.6,vy:0}),500)}}
  finQueue(a,d)}
@@ -568,7 +571,7 @@ function endMatch(){G.mode='result';G.phase='end';musicStop();$('#pad').classLis
  const XP=grantXP(me,xg),XPH=xpBlock(XP,xpParts),xpGo=()=>setTimeout(()=>animXP(XP,()=>{if(XP.sa>XP.sb)evolveCutscene(me,XP.sb,XP.sa)}),350);
  if(kind==='gauntlet'){if(won){S.gStreak++;S.gBest=Math.max(S.gBest,S.gStreak);const coins=30+S.gStreak*12+(G.stats.flawless?30:0);S.coins+=coins;S.wins++;let un=null;if(!FIGHTERS[opp].prem&&opp!=='boss'&&!owned(opp)){S.unlocked.push(opp);un=opp}S.bestCombo=Math.max(S.bestCombo,G.stats.best);save();SFX.fanfare();
    modal(`<h1>STREAK x${S.gStreak}!</h1><p>Beat ${FIGHTERS[opp].name} ${G.wins[0]} - ${G.wins[1]}${G.stats.flawless?' | FLAWLESS +30':''}<br>Best streak: ${S.gBest}</p><p style="font-size:22px;color:#ffd23d">+<span id="wonCoins">${coins}</span> COINS</p>${XPH}${un?`<p style="color:#b6ff2e">NEW FIGHTER UNLOCKED!</p><img class="pf" src="${imgSrc(un)}" alt=""><p>${FIGHTERS[un].name}</p>`:''}${FIGHTERS[opp].prem&&!owned(opp)?`<p style="color:#ffd23d">Liked ${FIGHTERS[opp].name}? It's ${TLABEL(FIGHTERS[opp].prem)} in the shop.</p>`:''}
-   <div class="row"><button class="btn big" id="nextBtn">NEXT OPPONENT</button></div><div class="row"><button class="btn gold" id="x2Btn">x2 COINS (AD)</button>${FIGHTERS[opp].prem&&!owned(opp)?'<button class="btn pink" id="seeShop">SEE IN SHOP</button>':''}<button class="btn grey" id="menuBtn">MENU</button></div>`);
+   <div class="row"><button class="btn big" id="nextBtn">NEXT OPPONENT</button></div><div class="row"><button class="btn gold" id="x2Btn">${COIN_STORE?'x2 COINS':'x2 COINS (AD)'}</button>${FIGHTERS[opp].prem&&!owned(opp)?'<button class="btn pink" id="seeShop">SEE IN SHOP</button>':''}<button class="btn grey" id="menuBtn">MENU</button></div>`);
    $('#nextBtn').onclick=()=>startMatch(0,false,{gauntlet:1});$('#x2Btn').onclick=()=>showAd(()=>{S.coins+=coins;save();setCoins();$('#wonCoins').textContent=coins*2;$('#x2Btn').disabled=true;SFX.coin();toast('Coins doubled!')});if($('#seeShop'))$('#seeShop').onclick=()=>{quit();openShop(opp)}}
   else{const streak=S.gStreak,c=5+streak*3;S.gStreak=0;S.coins+=c;save();SFX.womp();
    modal(`<h1>GAUNTLET OVER</h1><img class="pf" src="${imgSrc(opp,'attack')}" alt=""><p>${FIGHTERS[opp].name} ended your run. "${pick(FIGHTERS[opp].lines)}"</p><p style="font-size:20px;color:#ffd23d">STREAK: ${streak} | BEST: ${S.gBest}</p><p>+${c} coins</p>${XPH}<div class="row"><button class="btn pink" id="retryBtn">NEW RUN (R)</button><button class="btn grey" id="menuBtn">MENU</button></div>`);
@@ -576,7 +579,7 @@ function endMatch(){G.mode='result';G.phase='end';musicStop();$('#pad').classLis
   $('#menuBtn').onclick=()=>{quit();screen('select')};xpGo();return}
  if(won){const coins=40+r*9+(G.stats.flawless?30:0);S.coins+=coins;S.wins++;if(S.rung<=r)S.rung=r+1;let un=null;if(!S.unlocked.includes(opp)){S.unlocked.push(opp);un=opp}S.bestCombo=Math.max(S.bestCombo,G.stats.best);save();SFX.fanfare();
   modal(`<h1>${r===LAST?'LADDER CLEARED!':'VICTORY!'}</h1><p>${G.wins[0]} - ${G.wins[1]} vs ${FIGHTERS[opp].name}${G.stats.flawless?' | FLAWLESS +30':''}<br>Best combo: ${G.stats.best} hits</p><p style="font-size:22px;color:#ffd23d">+<span id="wonCoins">${coins}</span> COINS</p>${XPH}${un?`<p style="color:#b6ff2e">NEW FIGHTER UNLOCKED!</p><img class="pf" src="${imgSrc(un)}" alt=""><p>${FIGHTERS[un].name}</p>`:''}
-  <div class="row">${r<LAST?'<button class="btn big" id="nextBtn">NEXT FIGHT</button>':''}</div><div class="row"><button class="btn gold" id="x2Btn">x2 COINS (AD)</button><button class="btn blue" id="shareBtn">SHARE</button><button class="btn grey" id="menuBtn">MENU</button></div>`);
+  <div class="row">${r<LAST?'<button class="btn big" id="nextBtn">NEXT FIGHT</button>':''}</div><div class="row"><button class="btn gold" id="x2Btn">${COIN_STORE?'x2 COINS':'x2 COINS (AD)'}</button><button class="btn blue" id="shareBtn">SHARE</button><button class="btn grey" id="menuBtn">MENU</button></div>`);
   if($('#nextBtn'))$('#nextBtn').onclick=()=>startMatch(r+1);
   $('#x2Btn').onclick=()=>showAd(()=>{S.coins+=coins;save();setCoins();$('#wonCoins').textContent=coins*2;$('#x2Btn').disabled=true;SFX.coin();toast('Coins doubled!')});
   $('#shareBtn').onclick=()=>{quit();screen('home');shareCard()}}
@@ -618,9 +621,9 @@ $$('.tb').forEach(b=>{const k=b.dataset.k;b.addEventListener('pointerdown',e=>{e
 // ---------- UPDATE ----------
 function updateGame(rdt){musicTick();if(G.freeze>0){G.freeze-=rdt;updJuice(0,rdt);if(G.freeze<=0)G.superF=null;return}
  let dt=rdt;if(J.stop>0){J.stop-=rdt;dt=0}else dt=rdt*J.slow;G.pt+=rdt;
- if(G.phase==='intro'){if(G.pt>.15&&!G.s1){G.s1=1;popText(W/2,H*.34,G.round===3?'FINAL ROUND':'ROUND '+G.round,'#fff',fitSize(X,'FINAL ROUND',84,W*.85),{hud:1,life:1.1,vy:0});SFX.bell();say(G.round===3?'Final round':'Round '+G.round)}
+ if(G.phase==='intro'){if(G.pt>.15&&!G.s1){G.s1=1;popText(W/2,H*.34,G.round===3?'FINAL ROUND':'ROUND '+G.round,'#fff',fitSize(X,'FINAL ROUND',84,W*.85),{hud:1,life:1.1,vy:0});SFX.bell()}
   if(G.pt>.35&&!G.s3&&G.round===1){G.s3=1;bubble(G.p2,pick(G.p2.F.lines),1.4)}
-  if(G.pt>1.25&&!G.s2){G.s2=1;popText(W/2,H*.34,'FIGHT!','#b6ff2e',fitSize(X,'FIGHT!',120,W*.8),{hud:1,life:.9,vy:0,rot:-.05});shake(.4);SFX.heavy();say('Fight!')}if(G.pt>1.5)G.phase='fight'}
+  if(G.pt>1.25&&!G.s2){G.s2=1;popText(W/2,H*.34,'FIGHT!','#b6ff2e',fitSize(X,'FIGHT!',120,W*.8),{hud:1,life:.9,vy:0,rot:-.05});shake(.4);SFX.heavy()}if(G.pt>1.5)G.phase='fight'}
  if(dt>0){G.time+=dt;const p=G.p1,q=G.p2;if(G.phase==='fight'||G.phase==='intro'){feedPlayer(p);aiUpdate(q,p)}else{clearEdges(p.ctl);p.ctl.l=p.ctl.r=p.ctl.blk=0;q.ctl.l=q.ctl.r=q.ctl.blk=0;clearEdges(q.ctl)}
   if(!(G.fin&&G.fin.d===p))updF(p,q,dt);if(!(G.fin&&G.fin.d===q))updF(q,p,dt);if(!G.fin)pushApart(p,q);if(G.phase==='fight'){hitCheck(p,q);hitCheck(q,p)}updProjs(dt);clearEdges(p.ctl);clearEdges(q.ctl);clearEdges(PEND);
   if(G.phase==='fight'){G.timer-=dt;if(G.timer<=0){G.timer=0;timeUp()}}}
@@ -636,7 +639,9 @@ function camera(){const p=G.p1,q=G.p2,portrait=H>W*1.1,fy=portrait?H*.62:H*.83,d
  lo=Math.max(lo,-300);hi=Math.min(hi,1900);const need=Math.min(portrait?2200:1900,hi-lo+(portrait?60:120)),mid=(lo+hi)/2,fin=G.fin&&!G.fin.done;
  const tw=portrait?clamp(Math.max(need,fin?finCamW():0),620,2200):(fin?Math.max(finCamW(),need):clamp(Math.max(dist+680,need),900,1600));
  G.cam.w=lerp(G.cam.w,tw,portrait?.16:.08);G.cam.x=lerp(G.cam.x,portrait?mid:fin?G.fin.zx:(p.x+q.x)/2,portrait?.2:.12);if(G.cam.w<need)G.cam.w=need;
- let s=Math.min(W/G.cam.w,(fy-40)/590),cx=G.cam.x;if(G.freeze>0&&G.superF&&!portrait&&W/(s*1.15)>=need){s*=1.15;cx=lerp(cx,G.superF.x,.6)}const vw=W/s;
+ let top=590;for(const f of [p,q])top=Math.max(top,f.y+Math.max(0,f.vy||0)*.15+f.F.h*(f.vis||1)*(f.sc||1)+40);for(const j of G.projs)if(j.x>-200&&j.x<1800)top=Math.max(top,(j.y||0)+(j.r||30)+30);top=Math.min(top,2400);
+ G.cam.top=top>(G.cam.top||590)?top:lerp(G.cam.top,top,.06);const hud=Math.min(110,H*.17);
+ let s=Math.min(W/G.cam.w,(fy-40)/590,(fy-hud)/G.cam.top),cx=G.cam.x;if(G.freeze>0&&G.superF&&!portrait&&W/(s*1.15)>=need){s*=1.15;cx=lerp(cx,G.superF.x,.6)}const vw=W/s;
  {cx=vw>=1600?800:clamp(cx,vw/2,1600-vw/2);if(vw>=hi-lo)cx=clamp(cx,hi-vw/2,lo+vw/2)}VIEW={s,cx,fy}}
 function drawBG(c){const {s,cx,fy}=VIEW;c.fillStyle='#0d0020';c.fillRect(0,0,W,H);if(!BG)return;const px=800+(cx-800)*.85,bw=1600*s,bh=900*s,bx=W/2-px*s,by=fy-790*s;
  c.drawImage(BG,bx,by,bw,bh);if(by+bh<H){c.save();c.globalAlpha=.32;c.translate(0,2*(by+bh));c.scale(1,-1);c.drawImage(BG,bx,by,bw,bh);c.restore();const gg=c.createLinearGradient(0,by+bh,0,H);gg.addColorStop(0,'#0d002055');gg.addColorStop(1,'#0d0020');c.fillStyle=gg;c.fillRect(0,by+bh,W,H-by-bh)}if(bx>0||bx+bw<W){c.save();c.scale(-1,1);c.drawImage(BG,-bx,by,bw,bh);c.drawImage(BG,-(bx+2*bw),by,bw,bh);c.restore()}
@@ -749,7 +754,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){for(const 
 loadAssets().then(()=>{renderHome();requestAnimationFrame(loop)}).catch(e=>{console.error(e);toast('Failed to load art, check connection',5000)});
 renderHome();
 
-if(DEBUG){window.__test={get G(){return G},get S(){return S},get lastCard(){return lastCard},get ready(){return assetsReady},autoBuy:false,startMatch,
+if(DEBUG){window.__test={get G(){return G},get VIEW(){return VIEW},get W(){return W},get H(){return H},get S(){return S},get lastCard(){return lastCard},get ready(){return assetsReady},autoBuy:false,startMatch,
  setHp:(i,v)=>{const f=i?G.p2:G.p1;f.hp=f.ghost=v},aiOff:v=>{G.aiOff=v},fillMeter:i=>{(i?G.p2:G.p1).meter=100},
  koP2:()=>{const p=G.p1,q=G.p2;q.hp=1;resolveHit(p,q,{dmg:999,kx:600,ky:900,launch:1,hs:.5,hstop:.1,shake:.5,sfx:'heavy',fromX:p.x})},
  koP1:()=>{const p=G.p1,q=G.p2;p.hp=1;p.inv=0;p.st='idle';resolveHit(q,p,{dmg:999,kx:600,ky:900,launch:1,hs:.5,hstop:.1,shake:.5,sfx:'heavy',fromX:q.x,unblockable:1})},

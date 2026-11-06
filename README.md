@@ -7,6 +7,7 @@ Live: https://brainrot-battle-eight.vercel.app
 ## Controls
 - Desktop: A/D or arrows move (double-tap = dash), W / Space / Up jump, J punch (3-hit string), K heavy (hold to charge, launches; in air = meteor spike), L block (tap just before a hit = parry, stuns), U special (when meter full), Esc menu.
 - Mobile: drag the left side to move (flick up = jump, double-flick = dash); PUNCH / HEAVY / BLOCK / SPECIAL buttons on the right. Multitouch.
+- PC: the same on-screen pad shows too and works with a mouse (buttons are labelled with their keys). On wide screens home and fighter select use two columns.
 
 ## Game
 - Best of 3, 60s rounds. Ladder of 14 opponents (difficulty ramps) ending with The Omega Brainrot.
@@ -15,6 +16,9 @@ Live: https://brainrot-battle-eight.vercel.app
 - Juggles, ground bounce, wall bounce, combo scaling, chip damage, projectiles that can be swatted, super-flash specials.
 - Fusion Lab (light): your fighter keeps its body and borrows another fighter's special.
 - Stubs: `showAd()` (continue / double coins) and `purchase()` (premium fighter) in game.js.
+
+## itch.io
+Live at https://agonygames.itch.io/brainrot-battle. `node build-itch.js` writes `dist/itch` (game.js + fin.js bundled in one private scope), then `butler push dist/itch agonygames/brainrot-battle:html5 --userversion X.Y.Z`. On itch.io hosts (or with `?coins`) the premium shop uses in-game coins instead of money and the x2 coins button skips the fake ad.
 
 ## Files
 - `index.html`: UI and styles. `game.js`: the game. `assets/`: webp sprites (idle/attack/hurt) + arena, plus `sprites.json` anchors.

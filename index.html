@@ -68,6 +68,8 @@ h2{margin:14px 0 6px;font-size:18px;color:#b6ff2e;text-shadow:2px 2px 0 #000}
 /* touch controls */
 #pad{position:fixed;inset:0;z-index:5;display:none;pointer-events:none}
 #pad.on{display:block}
+#pad:not(.kb) .kbonly,#pad.kb .tonly{display:none}
+#pad.kb .tb{cursor:pointer}
 #stickZone{position:absolute;left:0;bottom:0;width:48%;height:62%;pointer-events:auto}
 #stick{position:absolute;width:130px;height:130px;margin:-65px 0 0 -65px;border-radius:50%;border:4px solid #fff6;background:#0005;display:none}
 #stick i{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:#fffc;border:4px solid #000}
@@ -82,6 +84,21 @@ h2{margin:14px 0 6px;font-size:18px;color:#b6ff2e;text-shadow:2px 2px 0 #000}
 #bU.ready{background:radial-gradient(circle,#fff36b,#ff3df2);color:#000;animation:throb .4s infinite alternate}
 @keyframes throb{to{transform:scale(1.12) rotate(5deg)}}
 #pauseBtn{position:fixed;z-index:6;left:50%;transform:translateX(-50%);top:calc(78px + env(safe-area-inset-top));font:inherit;font-size:11px;padding:4px 10px;border-radius:10px;border:2px solid #000;background:#0008;color:#fff;display:none}
+/* ---- PC / landscape: home and select become two columns so nothing hides below the fold ---- */
+@media (min-aspect-ratio:4/3) and (min-width:700px){
+#home .wrap,#select .wrap{max-width:1280px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px;align-items:start}
+.colL{position:sticky;top:0}
+#home .colR{padding-top:10px}
+#home .colL{overflow:hidden;padding:6px 0}
+#home .logo b{font-size:min(7.5vw,92px)}
+#home .logo i{font-size:min(6.2vw,76px)}
+#home .hero{height:min(40vh,300px)}
+#home .btn.big{padding:12px 20px}
+#select .cols{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}
+#select .info img{width:min(15vw,170px)}
+#select .colR .tabs{margin-top:44px!important}
+}
 /* ---- select tabs / scroll ---- */
 .tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
 .tab{flex:none;font:inherit;font-size:13px;padding:7px 12px;border-radius:99px;border:3px solid #000;background:#2a0a52;color:#fff;box-shadow:0 3px 0 #000;cursor:pointer}
@@ -205,14 +222,16 @@ img.pevo2{filter:drop-shadow(0 0 6px #2ec5ff) saturate(1.3) hue-rotate(-8deg)}im
 <script>(function(){var last=0;document.addEventListener('touchend',function(e){var n=Date.now();if(e.cancelable&&n-last<350&&!(e.target.closest&&e.target.closest('input,textarea'))){e.preventDefault();}last=n;},{passive:false});['gesturestart','gesturechange','gestureend'].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();},{passive:false});});document.addEventListener('dblclick',function(e){e.preventDefault();},{passive:false});document.addEventListener('touchmove',function(e){if(e.cancelable&&e.touches&&e.touches.length>1)e.preventDefault();},{passive:false});})();</script>
 </head><body>
 <canvas id="cv"></canvas>
-<div id="pad"><div id="stickZone"><div id="stickHint">DRAG<br>move / flick up = jump<br>double-flick = dash</div><div id="stick"><i></i></div></div>
-<button class="tb" id="bL" data-k="light">PUNCH<small>J</small></button><button class="tb" id="bK" data-k="heavy">HEAVY<small>hold</small></button><button class="tb" id="bB" data-k="block">BLOCK<small>L</small></button><button class="tb" id="bU" data-k="special">SPECIAL</button></div>
+<div id="pad"><div id="stickZone"><div id="stickHint"><span class="tonly">DRAG<br>move / flick up = jump<br>double-flick = dash</span><span class="kbonly">DRAG or<br>A/D move<br>W/Space jump</span></div><div id="stick"><i></i></div></div>
+<button class="tb" id="bL" data-k="light">PUNCH<small>J</small></button><button class="tb" id="bK" data-k="heavy">HEAVY<small><span class="kbonly">K </span>hold</small></button><button class="tb" id="bB" data-k="block">BLOCK<small>L</small></button><button class="tb" id="bU" data-k="special">SPECIAL<small class="kbonly">U</small></button></div>
 <button id="pauseBtn">MENU</button>
 
 <section class="scr on" id="home"><div class="wrap">
  <div class="bar"><div class="pill"><span class="coin"></span><span class="coins">0</span></div><button class="btn grey" id="muteBtn" style="font-size:12px;padding:6px 10px">SOUND ON</button></div>
+ <div class="cols"><div class="colL">
  <div class="logo"><b>BRAINROT</b><i>BATTLE</i></div>
  <div class="hero" id="hero"></div>
+ </div><div class="colR">
  <button class="btn big pink" id="playBtn">FIGHT!</button>
  <div class="row"><button class="btn blue" id="gauntletHome">GAUNTLET<br><small id="gBest" style="font-size:10px;font-family:system-ui"></small></button></div>
  <div class="banner" id="shopBanner"><div class="bin"><div class="shine"></div><div class="bt"><b>20 PREMIUM FIGHTERS</b><span>Epic, Legendary &amp; Mythic. Auras, sky-drop intros, custom KOs.</span></div><div id="bannerImgs"></div><span class="go">SHOP</span></div></div>
@@ -220,19 +239,23 @@ img.pevo2{filter:drop-shadow(0 0 6px #2ec5ff) saturate(1.3) hue-rotate(-8deg)}im
  <div class="ladder" id="ladder"></div>
  <div class="keys" id="keysHelp"><b>A</b><b>D</b> move &nbsp; <b>W</b>/<b>Space</b> jump &nbsp; double-tap = dash<br><b>J</b> punch (x3 combo) &nbsp; <b>K</b> heavy (hold = charge, launches) &nbsp; <b>L</b> block (tap at the last moment = PARRY) &nbsp; <b>U</b> special<br>Air: <b>J</b> air kick, <b>K</b> meteor spike. Juggle them, bounce them off walls.</div>
  <div class="row"><button class="btn blue" id="shareHome">SHARE</button><button class="btn gold" id="shopBtn">SHOP</button></div>
+ </div></div>
 </div></section>
 
 <section class="scr" id="select"><div class="wrap">
  <div class="bar"><button class="btn grey" id="backBtn" style="font-size:13px;padding:6px 12px">BACK</button><div class="pill"><span class="coin"></span><span class="coins">0</span></div></div>
+ <div class="cols"><div class="colL">
  <h2>CHOOSE YOUR FIGHTER</h2>
  <div class="info" id="info"></div>
  <button class="btn big" id="goBtn">FIGHT</button>
  <div class="row"><button class="btn blue" id="gauntletBtn">GAUNTLET (random foes)</button><button class="btn gold" id="shopSel">PREMIUM SHOP</button></div>
+ </div><div class="colR">
  <div class="tabs" id="tabs" style="margin-top:12px"></div>
  <div class="grid" id="grid"></div>
  <h2>FUSION LAB <small style="color:#fff;font-size:11px;font-family:system-ui">(give your fighter another fighter's SPECIAL)</small></h2>
  <div class="hint" id="fuseHint"></div>
  <div class="grid" id="donors"></div>
+ </div></div>
 </div></section>
 
 <section class="scr" id="shop"><div class="wrap">

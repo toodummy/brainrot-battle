@@ -52,13 +52,13 @@ function finStart(){const {a,d}=G.finQ;G.finQ=null;const L=FIN[a.id]||FIN.shark;
  const [name,type,col,em]=L[i],S=1+.3*((a.stage||1)-1),dir=sgn(d.x-a.x)||1,tx=clamp(a.x+dir*300,WL+120,WR-120);
  a.st='idle';a.mv=null;a.vx=0;a.charging=0;d.st='fin';d.vx=d.vy=0;G.projs=[];
  G.fin={a,d,name,type,col,em,S,i,t:0,u:0,dir,x0:d.x,y0:d.y,tx,zx:(a.x+tx)/2,zw:640,flags:{},px:[]};
- popText(W/2,H*.3,"BRAINROT 'EM!",'#ff3df2',fitSize(X,"BRAINROT 'EM!",100,W*.86),{hud:1,life:.95,vy:0,rot:-.05});SFX.bell();say('Brainrot them!')}
+ popText(W/2,H*.3,"BRAINROT 'EM!",'#ff3df2',fitSize(X,"BRAINROT 'EM!",100,W*.86),{hud:1,life:.95,vy:0,rot:-.05});SFX.bell()}
 function finTick(rdt){if(G.finQ&&G.koT>=1.0)finStart();const F=G.fin;if(!F)return!!G.finQ;if(F.done)return false;
  const imp=F.t>FIN_T0+.15&&F.t<FIN_T0+.5,rate=imp?.4:1;J.slow=imp?.4:1;J.slowT=imp?.1:0;F.t+=rdt*rate;F.u=clamp((F.t-FIN_T0)/FIN_A,0,1);
  const fl=F.flags,on=k=>!fl[k]&&(fl[k]=1);
  if(F.t>.6&&on('nm')){popText(W/2,H*.46,F.name+'!',F.col,fitSize(X,F.name+'!',74,W*.8),{hud:1,life:1.6,vy:0,rot:.04});SFX.super&&SFX.super()}
  if(F.u>0&&on('go'))finSfx(F,'go');if(F.u>.14&&on('hit')){finSfx(F,'hit');shake(.9*F.S)}if(F.u>.6&&on('mid'))finSfx(F,'mid');
- if(F.t>FIN_BAN&&on('ban')){popText(W/2,H*.32,'BRAINROTALITY!','#b6ff2e',fitSize(X,'BRAINROTALITY!',112,W*.9),{hud:1,life:1.2,vy:0,rot:-.04});SFX.fanfare();shake(.6);J.flash=.5;J.flashCol=F.col;say('Brainrotality!')}
+ if(F.t>FIN_BAN&&on('ban')){popText(W/2,H*.32,'BRAINROTALITY!','#b6ff2e',fitSize(X,'BRAINROTALITY!',112,W*.9),{hud:1,life:1.2,vy:0,rot:-.04});SFX.fanfare();shake(.6);J.flash=.5;J.flashCol=F.col}
  if(F.t>FIN_END){F.done=1;J.slow=1;G.koT=Math.max(G.koT,2.45);return false}return true}
 function finSkip(){const F=G&&G.fin;if(F&&!F.done&&F.t>1&&F.t<FIN_BAN){F.t=FIN_BAN;F.u=1;F.flags.hit=F.flags.mid=F.flags.go=1;J.parts.length=0}}
 document.addEventListener('pointerdown',finSkip,true);document.addEventListener('keydown',finSkip,true);
